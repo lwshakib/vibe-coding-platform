@@ -14,6 +14,7 @@
     "db:reset": "bun x prisma migrate reset"
   },
   "dependencies": {
+    "@google/genai": "^1.34.0",
     "@hookform/resolvers": "^5.2.2",
     "@number-flow/react": "^0.5.10",
     "@prisma/adapter-pg": "^7.2.0",
@@ -66,7 +67,8 @@
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.0",
     "vaul": "^1.1.2",
-    "zod": "^4.2.1"
+    "zod": "^4.2.1",
+    "zustand": "^5.0.9"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

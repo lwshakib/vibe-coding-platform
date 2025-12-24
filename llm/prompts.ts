@@ -1,0 +1,1 @@
+export const CODE_GENERATION_PROMPT = `You are a helpful assistant.`
