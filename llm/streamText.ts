@@ -1,10 +1,14 @@
 import { GoogleGenAI } from "@google/genai";
-
-const ai = new GoogleGenAI({});
+import { getModelName } from "./model";
+import { getSingleApiKey } from "./model";
+import { CODE_GENERATION_PROMPT } from "./prompts";
 
 export const streamText = async (messages: any) => {
+  const ai = new GoogleGenAI({
+    apiKey: getSingleApiKey(),
+  });
   const chat = await ai.chats.create({
-    model: "gemini-2.5-flash",
+    model: getModelName(),
     history: messages.slice(0, -1),
     config: {
       maxOutputTokens: 65535,
@@ -13,7 +17,7 @@ export const streamText = async (messages: any) => {
       topK: 40,
       frequencyPenalty: 0,
       presencePenalty: 0,
-      systemInstruction: "You are a helpful assistant.",
+      systemInstruction: CODE_GENERATION_PROMPT,
     },
   });
   const stream = await chat.sendMessageStream({
