@@ -4,7 +4,7 @@ import path from "path";
 export function getInitialFiles(
   starterDir: string
 ): Record<string, { content: string }> {
-  const baseDir = path.join(process.cwd(), "starters", starterDir);
+  const baseDir = path.join(process.cwd(), "features/apps", starterDir);
   const files: Record<string, { content: string }> = {};
 
   function traverse(currentDir: string, relativePath: string = "") {

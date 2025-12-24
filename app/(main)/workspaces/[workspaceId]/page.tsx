@@ -2,9 +2,9 @@
 
 import { useParams, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import TopView from "../_components/TopView";
-import LeftSideView from "../_components/LeftSideView";
-import RightSideView from "../_components/RightSideView";
+import TopView from "@/features/components/TopView";
+import LeftSideView from "@/features/components/LeftSideView";
+import RightSideView from "@/features/components/RightSideView";
 
 export default function WorkspacePage() {
   const params = useParams();
