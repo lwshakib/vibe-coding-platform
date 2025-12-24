@@ -1,55 +1,249 @@
 "use client";
 
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { cn } from "@/lib/utils";
+import React, { useCallback, useMemo, useEffect, useState } from "react";
+import CodeMirror from "@uiw/react-codemirror";
+import { javascript } from "@codemirror/lang-javascript";
+import { html } from "@codemirror/lang-html";
+import { css } from "@codemirror/lang-css";
+import { json } from "@codemirror/lang-json";
+import { vscodeDark } from "@uiw/codemirror-theme-vscode";
+import { useWorkspaceStore } from "@/context";
+import { useTheme } from "next-themes";
+import { tags as t } from "@lezer/highlight";
+import { createTheme } from "@uiw/codemirror-themes";
 
-const codeContent = `import React from 'react';
-import { Button } from '@/components/ui/button';
+const lightTheme = createTheme({
+  theme: "light",
+  settings: {
+    background: "var(--background)",
+    foreground: "#4d4d4c",
+    caret: "#aeafad",
+    selection: "#d6d6d6",
+    selectionMatch: "#d6d6d6",
+    lineHighlight: "#efefef",
+    gutterBackground: "var(--background)",
+    gutterForeground: "#4d4d4c",
+  },
+  styles: [
+    { tag: t.comment, color: "#8e908c" },
+    { tag: t.variableName, color: "#c82829" },
+    { tag: [t.string, t.special(t.brace)], color: "#718c00" },
+    { tag: t.number, color: "#f5871f" },
+    { tag: t.bool, color: "#f5871f" },
+    { tag: t.null, color: "#f5871f" },
+    { tag: t.keyword, color: "#8959a8" },
+    { tag: t.operator, color: "#3e999f" },
+    { tag: t.className, color: "#eab700" },
+    { tag: t.definition(t.typeName), color: "#eab700" },
+    { tag: t.typeName, color: "#eab700" },
+    { tag: t.angleBracket, color: "#3e999f" },
+    { tag: t.tagName, color: "#c82829" },
+    { tag: t.attributeName, color: "#eab700" },
+  ],
+});
 
-export default function App() {
-  return (
-    <div className="p-4 flex flex-col items-center justify-center min-h-screen">
-      <h1 className="text-2xl font-bold mb-4">Hello World</h1>
-      <p className="mb-4 text-muted-foreground">
-        Welcome to your new React application.
-      </p>
-      <Button variant="default">Click me</Button>
-    </div>
-  );
-}
-`;
+const darkTheme = createTheme({
+  theme: "dark",
+  settings: {
+    background: "var(--background)",
+    foreground: "#9cdcfe",
+    caret: "#c6c6c6",
+    selection: "#6199ff2f",
+    selectionMatch: "#72a1ff59",
+    lineHighlight: "#ffffff0f",
+    gutterBackground: "var(--background)",
+    gutterForeground: "#838383",
+  },
+  styles: [
+    { tag: t.keyword, color: "#569cd6" },
+    {
+      tag: [t.name, t.deleted, t.character, t.propertyName, t.macroName],
+      color: "#9cdcfe",
+    },
+    { tag: [t.function(t.variableName), t.labelName], color: "#dcdcaa" },
+    {
+      tag: [t.color, t.constant(t.name), t.standard(t.name)],
+      color: "#569cd6",
+    },
+    { tag: [t.definition(t.name), t.separator], color: "#9cdcfe" },
+    { tag: [t.brace], color: "#9cdcfe" },
+    { tag: [t.annotation], color: "#dcdcaa" },
+    {
+      tag: [t.number, t.changed, t.annotation, t.modifier, t.self, t.namespace],
+      color: "#b5cea8",
+    },
+    { tag: [t.typeName, t.className], color: "#4ec9b0" },
+    { tag: [t.operator, t.operatorKeyword], color: "#d4d4d4" },
+    { tag: [t.tagName], color: "#569cd6" },
+    { tag: [t.squareBracket], color: "#ffd700" },
+    { tag: [t.angleBracket], color: "#808080" },
+    { tag: [t.attributeName], color: "#9cdcfe" },
+    { tag: [t.regexp], color: "#d16969" },
+    { tag: [t.quote], color: "#6a9955" },
+    { tag: [t.string], color: "#ce9178" },
+    { tag: t.link, color: "#569cd6", textDecoration: "underline" },
+    { tag: [t.url, t.escape, t.special(t.string)], color: "#d4d4d4" },
+    { tag: [t.meta], color: "#d4d4d4" },
+    { tag: [t.comment], color: "#6a9955", fontStyle: "italic" },
+  ],
+});
+
+import { X } from "lucide-react";
+import { getFileIcon } from "./utils";
 
 export default function CodeView() {
-  const lines = codeContent.split("\n");
+  const {
+    currentWorkspace,
+    activeFile,
+    updateFiles,
+    openFiles,
+    setActiveFile,
+    closeFile,
+  } = useWorkspaceStore();
+  const { theme, resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const getLanguage = useCallback((filename: string) => {
+    const ext = filename.split(".").pop()?.toLowerCase();
+    switch (ext) {
+      case "js":
+      case "jsx":
+      case "ts":
+      case "tsx":
+        return javascript({ jsx: true, typescript: true });
+      case "html":
+        return html();
+      case "css":
+        return css();
+      case "json":
+        return json();
+      default:
+        return javascript();
+    }
+  }, []);
+
+  const fileContent = useMemo(() => {
+    if (!currentWorkspace || !activeFile) return null;
+    return currentWorkspace.files[activeFile]?.content ?? "";
+  }, [currentWorkspace, activeFile]);
+
+  const onChange = useCallback(
+    (value: string) => {
+      if (!currentWorkspace || !activeFile) return;
+
+      const newFiles = { ...currentWorkspace.files };
+      newFiles[activeFile] = {
+        ...newFiles[activeFile],
+        content: value,
+      };
+
+      updateFiles(newFiles);
+    },
+    [currentWorkspace, activeFile, updateFiles]
+  );
+
+  if (!activeFile && openFiles.length === 0) {
+    return (
+      <div className="h-full w-full bg-background flex items-center justify-center text-muted-foreground select-none">
+        <div className="flex flex-col items-center gap-2">
+          <div className="w-16 h-16 bg-muted rounded-2xl flex items-center justify-center mb-2">
+            <span className="text-3xl">⌨️</span>
+          </div>
+          <p className="text-sm font-medium">
+            Select a file to view its content
+          </p>
+          <p className="text-xs opacity-50">
+            Choose a file from the explorer on the left
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const currentTheme =
+    mounted && (resolvedTheme === "light" || theme === "light")
+      ? lightTheme
+      : darkTheme;
 
   return (
     <div className="h-full w-full bg-background flex flex-col">
-      <div className="flex items-center h-9 px-4 border-b border-border bg-muted/20">
-        <span className="text-sm text-foreground/80 font-medium">App.tsx</span>
-      </div>
-      <div className="flex-1 relative font-mono text-sm leading-6 overflow-hidden">
-        <ScrollArea className="h-full">
-          <div className="flex min-h-full">
-            {/* Line Numbers */}
-            <div className="flex flex-col items-end px-3 py-4 text-muted-foreground/50 bg-muted/10 select-none min-w-12 text-right border-r border-border/50">
-              {lines.map((_, i) => (
-                <div key={i + 1} className="h-6 leading-6">
-                  {i + 1}
-                </div>
-              ))}
-            </div>
-
-            {/* Code Content */}
-            <div className="flex-1 py-4 px-4 whitespace-pre">
-              {lines.map((line, i) => (
-                <div key={i} className="h-6 leading-6 text-foreground/90">
-                  {line}
-                </div>
-              ))}
-            </div>
+      {/* Tabs Header */}
+      <div className="flex items-center h-9 border-b border-border bg-muted/20 overflow-x-auto scrollbar-hide">
+        {openFiles.map((file) => (
+          <div
+            key={file}
+            className={`
+              group flex items-center gap-2 px-3 h-full text-xs font-medium cursor-pointer border-r border-border/50 min-w-30 max-w-50 hover:bg-background/50 transition-colors
+              ${
+                activeFile === file
+                  ? "bg-background text-foreground border-t-2 border-t-primary"
+                  : "text-muted-foreground bg-transparent border-t-2 border-t-transparent"
+              }
+            `}
+            onClick={() => setActiveFile(file)}
+          >
+            {getFileIcon(file)}
+            <span className="truncate flex-1">{file.split("/").pop()}</span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                closeFile(file);
+              }}
+              className={`opacity-0 group-hover:opacity-100 hover:bg-muted-foreground/20 p-0.5 rounded-sm transition-all ${
+                activeFile === file ? "opacity-100" : ""
+              }`}
+            >
+              <X className="w-3 h-3" />
+            </button>
           </div>
-          <ScrollBar orientation="horizontal" />
-        </ScrollArea>
+        ))}
+      </div>
+
+      <div className="flex-1 overflow-hidden relative">
+        {mounted && activeFile && (
+          <CodeMirror
+            value={fileContent || ""}
+            height="100%"
+            theme={currentTheme}
+            extensions={[getLanguage(activeFile)]}
+            onChange={onChange}
+            basicSetup={{
+              lineNumbers: true,
+              highlightActiveLineGutter: true,
+              highlightSpecialChars: true,
+              history: true,
+              drawSelection: true,
+              dropCursor: true,
+              allowMultipleSelections: true,
+              indentOnInput: true,
+              syntaxHighlighting: true,
+              bracketMatching: true,
+              closeBrackets: true,
+              autocompletion: true,
+              rectangularSelection: true,
+              crosshairCursor: true,
+              highlightActiveLine: true,
+              highlightSelectionMatches: true,
+              closeBracketsKeymap: true,
+              defaultKeymap: true,
+              searchKeymap: true,
+              historyKeymap: true,
+              foldKeymap: true,
+              completionKeymap: true,
+              lintKeymap: true,
+            }}
+            className="h-full text-sm"
+          />
+        )}
+        {mounted && !activeFile && openFiles.length > 0 && (
+          <div className="h-full w-full flex items-center justify-center text-muted-foreground">
+            Select a tab
+          </div>
+        )}
       </div>
     </div>
   );

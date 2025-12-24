@@ -11,7 +11,20 @@ import {
   FolderPlus,
   RefreshCw,
   ListCollapse,
+  Scissors,
+  Copy,
+  FileText,
+  Link,
+  Edit2,
+  Trash2,
 } from "lucide-react";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import { useWorkspaceStore } from "@/context";
 import React, { useState, useMemo } from "react";
 
@@ -21,6 +34,11 @@ type FileNode = {
   type: "file" | "folder";
   children?: FileNode[];
   isOpen?: boolean;
+};
+
+type ClipboardItem = {
+  type: "cut" | "copy";
+  path: string;
 };
 
 const transformFilesToTree = (files: Record<string, any>): FileNode[] => {
@@ -69,59 +87,46 @@ const transformFilesToTree = (files: Record<string, any>): FileNode[] => {
   return root;
 };
 
-const getFileIcon = (filename: string) => {
-  const ext = filename.split(".").pop()?.toLowerCase();
-
-  if (filename === ".gitignore")
-    return <span className="text-gray-400 text-[10px] font-bold">git</span>; // Simple placeholder
-
-  switch (ext) {
-    case "ts":
-    case "tsx":
-      return (
-        <div className="flex items-center justify-center w-4 h-4 rounded-[2px] bg-blue-500/10 text-blue-500 font-bold text-[8px] leading-none shrink-0">
-          TS
-        </div>
-      );
-    case "js":
-    case "jsx":
-    case "mjs":
-      return (
-        <div className="flex items-center justify-center w-4 h-4 rounded-[2px] bg-yellow-400/10 text-yellow-400 font-bold text-[8px] leading-none shrink-0">
-          JS
-        </div>
-      );
-    case "json":
-      return (
-        <div className="flex items-center justify-center w-4 h-4 text-yellow-200 font-bold text-[10px] leading-none shrink-0">
-          {"{}"}
-        </div>
-      );
-    case "md":
-      return (
-        <div className="flex items-center justify-center w-4 h-4 text-blue-300 font-bold text-[10px] leading-none shrink-0">
-          i
-        </div>
-      );
-    case "css":
-      return (
-        <div className="flex items-center justify-center w-4 h-4 text-blue-400 font-bold text-[8px] leading-none shrink-0">
-          #
-        </div>
-      );
-    default:
-      return (
-        <FileIcon className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0" />
-      );
-  }
-};
+import { getFileIcon } from "./utils";
 
 const FileTreeItem = ({
   node,
   depth = 0,
+  onNewFile,
+  onNewFolder,
+  onRename,
+  onDelete,
+  onCopyPath,
+  onCopyRelativePath,
+  onCut,
+  onCopy,
+  onPaste,
+  renamingPath,
+  newItemName,
+  setNewItemName,
+  onRenameSubmit,
+  setRenamingPath,
+  clipboard,
+  onFileClick,
 }: {
   node: FileNode;
   depth?: number;
+  onNewFile: (parentId: string) => void;
+  onNewFolder: (parentId: string) => void;
+  onRename: (path: string) => void;
+  onDelete: (path: string) => void;
+  onCopyPath: (path: string) => void;
+  onCopyRelativePath: (path: string) => void;
+  onCut: (path: string) => void;
+  onCopy: (path: string) => void;
+  onPaste: (parentId: string) => void;
+  renamingPath: string | null;
+  newItemName: string;
+  setNewItemName: (name: string) => void;
+  onRenameSubmit: () => void;
+  setRenamingPath: (path: string | null) => void;
+  clipboard: ClipboardItem | null;
+  onFileClick: (path: string) => void;
 }) => {
   const [isOpen, setIsOpen] = useState(node.isOpen || false);
 
@@ -133,59 +138,351 @@ const FileTreeItem = ({
   };
 
   return (
-    <div className="relative">
-      <div
-        className={cn(
-          "group flex items-center gap-1.5 py-0.5 px-2 cursor-pointer hover:bg-[#2a2d2e] text-sm select-none transition-colors min-w-0"
-        )}
-        style={{ paddingLeft: `${depth * 12 + 12}px` }}
-        onClick={toggleOpen}
-      >
-        {/* Indentation guide lines could go here, but simple padding is cleaner for now as per image */}
+    <ContextMenu>
+      <ContextMenuTrigger>
+        <div className="relative">
+          <div
+            className={cn(
+              "group flex items-center gap-1.5 py-0.5 px-2 cursor-pointer hover:bg-accent text-sm select-none transition-colors min-w-0"
+            )}
+            style={{ paddingLeft: `${depth * 12 + 12}px` }}
+            onClick={(e) => {
+              toggleOpen(e);
+              if (node.type === "file") onFileClick(node.id);
+            }}
+          >
+            <span className="text-muted-foreground shrink-0 flex items-center justify-center w-4">
+              {node.type === "folder" &&
+                (isOpen ? (
+                  <ChevronDown className="w-3.5 h-3.5 text-muted-foreground/80" />
+                ) : (
+                  <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/80" />
+                ))}
+            </span>
 
-        <span className="text-muted-foreground shrink-0 flex items-center justify-center w-4">
-          {node.type === "folder" &&
-            (isOpen ? (
-              <ChevronDown className="w-3.5 h-3.5 text-muted-foreground/80" />
+            {node.type === "file" && getFileIcon(node.name)}
+
+            {renamingPath === node.id ? (
+              <div className="flex-1 bg-accent ring-1 ring-primary rounded-sm px-1 ml-1">
+                <input
+                  autoFocus
+                  className="w-full bg-transparent border-none outline-none text-foreground text-sm p-0 focus:ring-0"
+                  value={newItemName}
+                  onChange={(e) => setNewItemName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") onRenameSubmit();
+                    if (e.key === "Escape") setRenamingPath(null);
+                  }}
+                  onBlur={onRenameSubmit}
+                />
+              </div>
             ) : (
-              <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/80" />
-            ))}
-        </span>
+              <span
+                className={cn(
+                  "truncate font-normal",
+                  node.type === "folder"
+                    ? "text-muted-foreground"
+                    : "text-muted-foreground",
+                  node.id === "src" && "text-foreground"
+                )}
+              >
+                {node.name}
+              </span>
+            )}
+          </div>
 
-        {node.type === "file" && getFileIcon(node.name)}
-
-        <span
-          className={cn(
-            "truncate font-normal",
-            node.type === "folder" ? "text-[#cccccc]" : "text-[#cccccc]",
-            // Creating slight difference or matching the image style
-            node.id === "src" && "text-white"
+          {isOpen && node.children && (
+            <div>
+              {node.children.map((child) => (
+                <FileTreeItem
+                  key={child.id}
+                  node={child}
+                  depth={depth + 1}
+                  onNewFile={onNewFile}
+                  onNewFolder={onNewFolder}
+                  onRename={onRename}
+                  onDelete={onDelete}
+                  onCopyPath={onCopyPath}
+                  onCopyRelativePath={onCopyRelativePath}
+                  onCut={onCut}
+                  onCopy={onCopy}
+                  onPaste={onPaste}
+                  renamingPath={renamingPath}
+                  newItemName={newItemName}
+                  setNewItemName={setNewItemName}
+                  onRenameSubmit={onRenameSubmit}
+                  setRenamingPath={setRenamingPath}
+                  clipboard={clipboard}
+                  onFileClick={onFileClick}
+                />
+              ))}
+            </div>
           )}
-        >
-          {node.name}
-        </span>
-      </div>
-
-      {isOpen && node.children && (
-        <div>
-          {node.children.map((child) => (
-            <FileTreeItem key={child.id} node={child} depth={depth + 1} />
-          ))}
         </div>
-      )}
-    </div>
+      </ContextMenuTrigger>
+      <ContextMenuContent className="w-48 bg-popover border-border text-popover-foreground">
+        <ContextMenuItem
+          onClick={() =>
+            onNewFile(
+              node.type === "folder"
+                ? node.id
+                : node.id.split("/").slice(0, -1).join("/")
+            )
+          }
+          className="focus:bg-accent focus:text-accent-foreground"
+        >
+          <FilePlus className="w-4 h-4 mr-2" />
+          <span>New File</span>
+        </ContextMenuItem>
+        <ContextMenuItem
+          onClick={() =>
+            onNewFolder(
+              node.type === "folder"
+                ? node.id
+                : node.id.split("/").slice(0, -1).join("/")
+            )
+          }
+          className="focus:bg-accent focus:text-accent-foreground"
+        >
+          <FolderPlus className="w-4 h-4 mr-2" />
+          <span>New Folder</span>
+        </ContextMenuItem>
+        <ContextMenuSeparator className="border-border" />
+        {clipboard && node.type === "folder" && (
+          <>
+            <ContextMenuItem
+              onClick={() => onPaste(node.id)}
+              className="focus:bg-accent focus:text-accent-foreground"
+            >
+              <FilePlus className="w-4 h-4 mr-2 rotate-180" />
+              <span>Paste</span>
+            </ContextMenuItem>
+            <ContextMenuSeparator className="border-border" />
+          </>
+        )}
+        <ContextMenuItem
+          onClick={() => onCut(node.id)}
+          className="focus:bg-accent focus:text-accent-foreground"
+        >
+          <Scissors className="w-4 h-4 mr-2" />
+          <span>Cut</span>
+        </ContextMenuItem>
+        <ContextMenuItem
+          onClick={() => onCopy(node.id)}
+          className="focus:bg-accent focus:text-accent-foreground"
+        >
+          <Copy className="w-4 h-4 mr-2" />
+          <span>Copy</span>
+        </ContextMenuItem>
+        <ContextMenuSeparator className="border-border" />
+        <ContextMenuItem
+          onClick={() => onCopyPath(node.id)}
+          className="focus:bg-accent focus:text-accent-foreground"
+        >
+          <FileText className="w-4 h-4 mr-2" />
+          <span>Copy Path</span>
+        </ContextMenuItem>
+        <ContextMenuItem
+          onClick={() => onCopyRelativePath(node.id)}
+          className="focus:bg-accent focus:text-accent-foreground"
+        >
+          <Link className="w-4 h-4 mr-2" />
+          <span>Copy Relative Path</span>
+        </ContextMenuItem>
+        <ContextMenuSeparator className="border-border" />
+        <ContextMenuItem
+          onClick={() => onRename(node.id)}
+          className="focus:bg-accent focus:text-accent-foreground"
+        >
+          <Edit2 className="w-4 h-4 mr-2" />
+          <span>Rename</span>
+        </ContextMenuItem>
+        <ContextMenuItem
+          onClick={() => onDelete(node.id)}
+          className="focus:bg-accent focus:text-destructive text-destructive"
+        >
+          <Trash2 className="w-4 h-4 mr-2" />
+          <span>Delete</span>
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   );
 };
 
 export default function FileExplorer() {
-  const { currentWorkspace } = useWorkspaceStore();
+  const {
+    currentWorkspace,
+    updateFiles,
+    activeFile,
+    setActiveFile,
+    addOpenFile,
+    openFiles,
+    setOpenFiles,
+  } = useWorkspaceStore();
   const [activeTab, setActiveTab] = useState<"files" | "search">("files");
   const [searchQuery, setSearchQuery] = useState("");
+  const [isCreating, setIsCreating] = useState<"file" | "folder" | null>(null);
+  const [newItemName, setNewItemName] = useState("");
+  const [parentPath, setParentPath] = useState<string | null>(null);
+  const [renamingPath, setRenamingPath] = useState<string | null>(null);
+  const [clipboard, setClipboard] = useState<ClipboardItem | null>(null);
 
   const files = useMemo(() => {
     if (!currentWorkspace?.files) return [];
     return transformFilesToTree(currentWorkspace.files);
   }, [currentWorkspace?.files]);
+
+  const folders = useMemo(
+    () => files.filter((f) => f.type === "folder"),
+    [files]
+  );
+  const rootFiles = useMemo(
+    () => files.filter((f) => f.type === "file"),
+    [files]
+  );
+
+  const handleCreateSubmit = async () => {
+    if (!newItemName || !currentWorkspace) {
+      setIsCreating(null);
+      setParentPath(null);
+      setNewItemName("");
+      return;
+    }
+
+    const newFiles = { ...currentWorkspace.files };
+    const fullPath = parentPath ? `${parentPath}/${newItemName}` : newItemName;
+
+    if (isCreating === "file") {
+      newFiles[fullPath] = { content: "" };
+    } else {
+      newFiles[`${fullPath}/.keep`] = { content: "" };
+    }
+
+    await updateFiles(newFiles);
+    if (isCreating === "file") {
+      addOpenFile(fullPath);
+    }
+    setIsCreating(null);
+    setParentPath(null);
+    setNewItemName("");
+  };
+
+  const handleRenameSubmit = async () => {
+    if (!newItemName || !currentWorkspace || !renamingPath) {
+      setRenamingPath(null);
+      setNewItemName("");
+      return;
+    }
+
+    const newFiles = { ...currentWorkspace.files };
+    const pathParts = renamingPath.split("/");
+    pathParts[pathParts.length - 1] = newItemName;
+    const newPath = pathParts.join("/");
+
+    Object.keys(newFiles).forEach((path) => {
+      if (path === renamingPath) {
+        newFiles[newPath] = newFiles[path];
+        delete newFiles[path];
+      } else if (path.startsWith(`${renamingPath}/`)) {
+        const updatedPath = path.replace(renamingPath, newPath);
+        newFiles[updatedPath] = newFiles[path];
+        delete newFiles[path];
+      }
+    });
+
+    if (activeFile === renamingPath) {
+      setActiveFile(newPath);
+    } else if (activeFile?.startsWith(`${renamingPath}/`)) {
+      setActiveFile(activeFile.replace(renamingPath, newPath));
+    }
+
+    // Sync openFiles
+    const updatedOpenFiles = openFiles.map((path) => {
+      if (path === renamingPath) return newPath;
+      if (path.startsWith(`${renamingPath}/`)) {
+        return path.replace(renamingPath, newPath);
+      }
+      return path;
+    });
+    setOpenFiles(updatedOpenFiles);
+
+    await updateFiles(newFiles);
+    setRenamingPath(null);
+    setNewItemName("");
+  };
+
+  const handlePaste = async (targetDir: string) => {
+    if (!clipboard || !currentWorkspace) return;
+
+    const newFiles = { ...currentWorkspace.files };
+    const sourcePath = clipboard.path;
+    const sourceName = sourcePath.split("/").pop()!;
+    const targetPath = targetDir ? `${targetDir}/${sourceName}` : sourceName;
+
+    if (newFiles[sourcePath]) {
+      newFiles[targetPath] = JSON.parse(JSON.stringify(newFiles[sourcePath]));
+    }
+
+    Object.keys(newFiles).forEach((p) => {
+      if (p.startsWith(`${sourcePath}/`)) {
+        const relativePath = p.replace(sourcePath, "");
+        const newPath = `${targetPath}${relativePath}`;
+        newFiles[newPath] = JSON.parse(JSON.stringify(newFiles[p]));
+      }
+    });
+
+    if (clipboard.type === "cut") {
+      Object.keys(newFiles).forEach((p) => {
+        if (p === sourcePath || p.startsWith(`${sourcePath}/`)) {
+          if (!p.startsWith(targetPath)) {
+            delete newFiles[p];
+          }
+        }
+      });
+      setClipboard(null);
+    }
+
+    await updateFiles(newFiles);
+  };
+
+  const handleDelete = async (path: string) => {
+    if (!currentWorkspace) return;
+    const newFiles = { ...currentWorkspace.files };
+
+    Object.keys(newFiles).forEach((p) => {
+      if (p === path || p.startsWith(`${path}/`)) {
+        delete newFiles[p];
+      }
+    });
+
+    if (activeFile === path || activeFile?.startsWith(`${path}/`)) {
+      setActiveFile(null);
+    }
+
+    // Sync openFiles
+    const updatedOpenFiles = openFiles.filter(
+      (p) => p !== path && !p.startsWith(`${path}/`)
+    );
+    setOpenFiles(updatedOpenFiles);
+
+    await updateFiles(newFiles);
+  };
+
+  const handleCopy = (path: string) => {
+    setClipboard({ type: "copy", path });
+  };
+
+  const handleCut = (path: string) => {
+    setClipboard({ type: "cut", path });
+  };
+
+  const handleCopyPath = (path: string) => {
+    navigator.clipboard.writeText(path);
+  };
+
+  const handleCopyRelativePath = (path: string) => {
+    navigator.clipboard.writeText(path);
+  };
 
   const flattenFiles = (nodes: FileNode[]): FileNode[] => {
     let result: FileNode[] = [];
@@ -210,15 +507,15 @@ export default function FileExplorer() {
   }, [searchQuery, allFiles]);
 
   return (
-    <div className="h-full w-full bg-[#18181b] flex flex-col font-sans text-[13px]">
-      <div className="flex items-center gap-1 p-2 border-b border-[#2a2d2e] bg-[#18181b]">
+    <div className="h-full w-full bg-background flex flex-col font-sans text-[13px]">
+      <div className="flex items-center gap-1 p-2 border-b border-border bg-background">
         <button
           onClick={() => setActiveTab("files")}
           className={cn(
             "flex-1 flex items-center justify-center gap-2 py-1.5 px-3 rounded text-xs font-medium transition-colors",
             activeTab === "files"
-              ? "bg-[#2a2d2e] text-white"
-              : "text-muted-foreground hover:bg-[#2a2d2e]/50 hover:text-[#cccccc]"
+              ? "bg-secondary-foreground/10 text-secondary-foreground"
+              : "text-muted-foreground hover:bg-secondary-foreground/5 hover:text-secondary-foreground"
           )}
         >
           <Files className="w-3.5 h-3.5" />
@@ -229,8 +526,8 @@ export default function FileExplorer() {
           className={cn(
             "flex-1 flex items-center justify-center gap-2 py-1.5 px-3 rounded text-xs font-medium transition-colors",
             activeTab === "search"
-              ? "bg-[#2a2d2e] text-white"
-              : "text-muted-foreground hover:bg-[#2a2d2e]/50 hover:text-[#cccccc]"
+              ? "bg-secondary-foreground/10 text-secondary-foreground"
+              : "text-muted-foreground hover:bg-secondary-foreground/5 hover:text-secondary-foreground"
           )}
         >
           <Search className="w-3.5 h-3.5" />
@@ -240,42 +537,262 @@ export default function FileExplorer() {
 
       <div className="flex-1 overflow-hidden flex flex-col">
         {activeTab === "files" ? (
-          <>
-            <div className="flex items-center justify-between px-3 py-2 text-xs text-[#cccccc] font-medium uppercase tracking-wider hover:text-white cursor-pointer group shrink-0">
-              <span className="font-bold">Explorer</span>
-              <div className="flex items-center gap-1 transition-opacity">
-                <button
-                  className="p-0.5 hover:bg-[#3f3f46] rounded text-[#cccccc] hover:text-white transition-colors"
-                  title="New File"
-                >
-                  <FilePlus className="w-4 h-4" />
-                </button>
-                <button
-                  className="p-0.5 hover:bg-[#3f3f46] rounded text-[#cccccc] hover:text-white transition-colors"
-                  title="New Folder"
-                >
-                  <FolderPlus className="w-4 h-4" />
-                </button>
-                <button
-                  className="p-0.5 hover:bg-[#3f3f46] rounded text-[#cccccc] hover:text-white transition-colors"
-                  title="Refresh Explorer"
-                >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  className="p-0.5 hover:bg-[#3f3f46] rounded text-[#cccccc] hover:text-white transition-colors"
-                  title="Collapse Folders"
-                >
-                  <ListCollapse className="w-4 h-4" />
-                </button>
+          <ContextMenu>
+            <ContextMenuTrigger className="flex-1 flex flex-col h-full overflow-hidden">
+              <div className="flex items-center justify-between px-3 py-2 text-xs text-muted-foreground font-medium uppercase tracking-wider hover:text-foreground cursor-pointer group shrink-0">
+                <span className="font-bold">Explorer</span>
+                <div className="flex items-center gap-1 transition-opacity">
+                  <button
+                    className="p-0.5 hover:bg-accent rounded text-muted-foreground hover:text-foreground transition-colors"
+                    title="New File"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsCreating("file");
+                      setParentPath(null);
+                      setNewItemName("");
+                    }}
+                  >
+                    <FilePlus className="w-4 h-4" />
+                  </button>
+                  <button
+                    className="p-0.5 hover:bg-accent rounded text-muted-foreground hover:text-foreground transition-colors"
+                    title="New Folder"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsCreating("folder");
+                      setParentPath(null);
+                      setNewItemName("");
+                    }}
+                  >
+                    <FolderPlus className="w-4 h-4" />
+                  </button>
+                  <button className="p-0.5 hover:bg-accent rounded text-muted-foreground hover:text-foreground transition-colors">
+                    <RefreshCw className="w-3.5 h-3.5" />
+                  </button>
+                  <button className="p-0.5 hover:bg-accent rounded text-muted-foreground hover:text-foreground transition-colors">
+                    <ListCollapse className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
-            </div>
-            <div className="flex-1 overflow-auto overflow-x-hidden">
-              {files.map((node) => (
-                <FileTreeItem key={node.id} node={node} />
-              ))}
-            </div>
-          </>
+
+              <div className="flex-1 overflow-auto overflow-x-hidden">
+                {isCreating === "folder" && !parentPath && (
+                  <div
+                    className="flex items-center gap-1.5 py-1 px-3 bg-accent"
+                    style={{ paddingLeft: "12px" }}
+                  >
+                    <span className="text-muted-foreground shrink-0 flex items-center justify-center w-4">
+                      <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/80" />
+                    </span>
+                    <div className="flex-1 bg-accent ring-1 ring-primary rounded-sm px-1 ml-1">
+                      <input
+                        autoFocus
+                        className="w-full bg-transparent border-none outline-none text-foreground text-sm p-0 focus:ring-0"
+                        value={newItemName}
+                        onChange={(e) => setNewItemName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleCreateSubmit();
+                          if (e.key === "Escape") {
+                            setIsCreating(null);
+                            setParentPath(null);
+                          }
+                        }}
+                        onBlur={handleCreateSubmit}
+                        placeholder="folder name"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {folders.map((node) => (
+                  <React.Fragment key={node.id}>
+                    <FileTreeItem
+                      node={node}
+                      onNewFile={(id) => {
+                        setIsCreating("file");
+                        setParentPath(id);
+                        setNewItemName("");
+                      }}
+                      onNewFolder={(id) => {
+                        setIsCreating("folder");
+                        setParentPath(id);
+                        setNewItemName("");
+                      }}
+                      onRename={(id) => {
+                        setRenamingPath(id);
+                        setNewItemName(id.split("/").pop() || "");
+                      }}
+                      onDelete={handleDelete}
+                      onCopyPath={handleCopyPath}
+                      onCopyRelativePath={handleCopyRelativePath}
+                      onCut={handleCut}
+                      onCopy={handleCopy}
+                      onPaste={handlePaste}
+                      renamingPath={renamingPath}
+                      newItemName={newItemName}
+                      setNewItemName={setNewItemName}
+                      onRenameSubmit={handleRenameSubmit}
+                      setRenamingPath={setRenamingPath}
+                      clipboard={clipboard}
+                      onFileClick={addOpenFile}
+                    />
+                    {isCreating && parentPath === node.id && (
+                      <div
+                        className="flex items-center gap-1.5 py-1 px-3 bg-accent"
+                        style={{
+                          paddingLeft: `${
+                            node.id.split("/").length * 12 + 12
+                          }px`,
+                        }}
+                      >
+                        <span className="text-muted-foreground shrink-0 flex items-center justify-center w-4">
+                          {isCreating === "folder" ? (
+                            <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/80" />
+                          ) : (
+                            <FileIcon className="w-3.5 h-3.5 text-muted-foreground/60" />
+                          )}
+                        </span>
+                        <div className="flex-1 bg-accent ring-1 ring-primary rounded-sm px-1 ml-1">
+                          <input
+                            autoFocus
+                            className="w-full bg-transparent border-none outline-none text-foreground text-sm p-0 focus:ring-0"
+                            value={newItemName}
+                            onChange={(e) => setNewItemName(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") handleCreateSubmit();
+                              if (e.key === "Escape") {
+                                setIsCreating(null);
+                                setParentPath(null);
+                              }
+                            }}
+                            onBlur={handleCreateSubmit}
+                            placeholder={
+                              isCreating === "file"
+                                ? "file name"
+                                : "folder name"
+                            }
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </React.Fragment>
+                ))}
+
+                {isCreating === "file" && !parentPath && (
+                  <div
+                    className="flex items-center gap-1.5 py-1 px-3 bg-accent"
+                    style={{ paddingLeft: "12px" }}
+                  >
+                    <span className="text-muted-foreground shrink-0 flex items-center justify-center w-4">
+                      <FileIcon className="w-3.5 h-3.5 text-muted-foreground/60" />
+                    </span>
+                    <div className="flex-1 bg-accent ring-1 ring-primary rounded-sm px-1 ml-1">
+                      <input
+                        autoFocus
+                        className="w-full bg-transparent border-none outline-none text-foreground text-sm p-0 focus:ring-0"
+                        value={newItemName}
+                        onChange={(e) => setNewItemName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleCreateSubmit();
+                          if (e.key === "Escape") {
+                            setIsCreating(null);
+                            setParentPath(null);
+                          }
+                        }}
+                        onBlur={handleCreateSubmit}
+                        placeholder="file name"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {rootFiles.map((node) => (
+                  <FileTreeItem
+                    key={node.id}
+                    node={node}
+                    onNewFile={(id) => {
+                      setIsCreating("file");
+                      setParentPath(id);
+                      setNewItemName("");
+                    }}
+                    onNewFolder={(id) => {
+                      setIsCreating("folder");
+                      setParentPath(id);
+                      setNewItemName("");
+                    }}
+                    onRename={(id) => {
+                      setRenamingPath(id);
+                      setNewItemName(id.split("/").pop() || "");
+                    }}
+                    onDelete={handleDelete}
+                    onCopyPath={handleCopyPath}
+                    onCopyRelativePath={handleCopyRelativePath}
+                    onCut={handleCut}
+                    onCopy={handleCopy}
+                    onPaste={handlePaste}
+                    renamingPath={renamingPath}
+                    newItemName={newItemName}
+                    setNewItemName={setNewItemName}
+                    onRenameSubmit={handleRenameSubmit}
+                    setRenamingPath={setRenamingPath}
+                    clipboard={clipboard}
+                    onFileClick={addOpenFile}
+                  />
+                ))}
+              </div>
+            </ContextMenuTrigger>
+            <ContextMenuContent className="w-56 bg-popover border-border text-popover-foreground">
+              <ContextMenuItem
+                onClick={() => {
+                  setIsCreating("file");
+                  setParentPath(null);
+                  setNewItemName("");
+                }}
+                className="focus:bg-accent focus:text-accent-foreground"
+              >
+                <FilePlus className="w-4 h-4 mr-2" />
+                <span>New File</span>
+              </ContextMenuItem>
+              <ContextMenuItem
+                onClick={() => {
+                  setIsCreating("folder");
+                  setParentPath(null);
+                  setNewItemName("");
+                }}
+                className="focus:bg-accent focus:text-accent-foreground"
+              >
+                <FolderPlus className="w-4 h-4 mr-2" />
+                <span>New Folder</span>
+              </ContextMenuItem>
+              <ContextMenuSeparator className="border-border" />
+              {clipboard && (
+                <>
+                  <ContextMenuItem
+                    onClick={() => handlePaste("")}
+                    className="focus:bg-accent focus:text-accent-foreground"
+                  >
+                    <FilePlus className="w-4 h-4 mr-2 rotate-180" />
+                    <span>Paste</span>
+                  </ContextMenuItem>
+                  <ContextMenuSeparator className="border-border" />
+                </>
+              )}
+              <ContextMenuItem
+                onClick={() => navigator.clipboard.writeText("/")}
+                className="focus:bg-accent focus:text-accent-foreground"
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                <span>Copy Path</span>
+              </ContextMenuItem>
+              <ContextMenuItem
+                onClick={() => navigator.clipboard.writeText("/")}
+                className="focus:bg-accent focus:text-accent-foreground"
+              >
+                <Link className="w-4 h-4 mr-2" />
+                <span>Copy Relative Path</span>
+              </ContextMenuItem>
+            </ContextMenuContent>
+          </ContextMenu>
         ) : (
           <div className="flex flex-col h-full">
             <div className="p-3">
@@ -287,7 +804,7 @@ export default function FileExplorer() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search files..."
                   autoFocus
-                  className="w-full bg-[#2a2d2e] text-[#cccccc] text-xs pl-8 pr-2 py-1.5 rounded border border-transparent focus:outline-none focus:ring-1 focus:ring-blue-500/50 placeholder:text-muted-foreground/50"
+                  className="w-full bg-accent text-foreground text-xs pl-8 pr-2 py-1.5 rounded border border-transparent focus:outline-none focus:ring-1 focus:ring-primary/50 placeholder:text-muted-foreground/50"
                 />
               </div>
             </div>
@@ -300,12 +817,12 @@ export default function FileExplorer() {
               {searchResults.map((file) => (
                 <div
                   key={file.id}
-                  className="flex items-center gap-2 py-1.5 px-3 cursor-pointer hover:bg-[#2a2d2e] text-sm select-none"
+                  className="flex items-center gap-2 py-1.5 px-3 cursor-pointer hover:bg-accent text-sm select-none"
+                  onClick={() => addOpenFile(file.id)}
                 >
                   {getFileIcon(file.name)}
-                  <span className="text-[#cccccc] truncate">{file.name}</span>
+                  <span className="text-foreground truncate">{file.name}</span>
                   <span className="text-muted-foreground text-xs ml-auto truncate opacity-50">
-                    {/* Simplified path display */}
                     ...
                   </span>
                 </div>

@@ -31,6 +31,13 @@ interface WorkspaceStore {
   stopStreaming: () => void;
   activeTab: TabType;
   setActiveTab: (tab: TabType) => void;
+  activeFile: string | null;
+  setActiveFile: (path: string | null) => void;
+  openFiles: string[];
+  setOpenFiles: (files: string[]) => void;
+  addOpenFile: (path: string) => void;
+  closeFile: (path: string) => void;
+  updateFiles: (files: any) => Promise<void>;
 }
 
 export const useWorkspaceStore = create<WorkspaceStore>((set) => ({
@@ -57,6 +64,86 @@ export const useWorkspaceStore = create<WorkspaceStore>((set) => ({
   stopStreaming: () => set({ streamingStatus: "idle" }),
   activeTab: "code-editor",
   setActiveTab: (tab) => set({ activeTab: tab }),
+  activeFile: null,
+  setActiveFile: (path: string | null) => set({ activeFile: path }),
+  openFiles: [],
+  setOpenFiles: (files) => set({ openFiles: files }),
+  addOpenFile: (path: string) =>
+    set((state) => {
+      // If already open, just switch focus
+      if (state.openFiles.includes(path)) {
+        return { activeFile: path };
+      }
+
+      // Add new file and keep only the last 5 (FIFO)
+      const newOpenFiles = [...state.openFiles, path].slice(-5);
+
+      return {
+        openFiles: newOpenFiles,
+        activeFile: path,
+      };
+    }),
+  closeFile: (path: string) =>
+    set((state) => {
+      const newOpenFiles = state.openFiles.filter((f) => f !== path);
+      let newActiveFile = state.activeFile;
+
+      // If we closed the active file, switch to the last remaining tab or null
+      if (state.activeFile === path) {
+        newActiveFile =
+          newOpenFiles.length > 0
+            ? newOpenFiles[newOpenFiles.length - 1]
+            : null;
+      }
+
+      return {
+        openFiles: newOpenFiles,
+        activeFile: newActiveFile,
+      };
+    }),
+  updateFiles: async (files) => {
+    const previousFiles = useWorkspaceStore.getState().currentWorkspace?.files;
+
+    // Optimistic update
+    set((state) => ({
+      currentWorkspace: state.currentWorkspace
+        ? { ...state.currentWorkspace, files }
+        : null,
+    }));
+
+    try {
+      const currentWorkspace = useWorkspaceStore.getState().currentWorkspace;
+      if (!currentWorkspace) return;
+
+      const response = await fetch(
+        `/api/workspaces/${currentWorkspace.id}/files`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ files }),
+        }
+      );
+
+      if (!response.ok) {
+        // Rollback on failure
+        set((state) => ({
+          currentWorkspace: state.currentWorkspace
+            ? { ...state.currentWorkspace, files: previousFiles }
+            : null,
+        }));
+      }
+    } catch (error) {
+      console.error("Failed to update files:", error);
+      // Rollback on error
+      set((state) => ({
+        currentWorkspace: state.currentWorkspace
+          ? { ...state.currentWorkspace, files: previousFiles }
+          : null,
+      }));
+    }
+  },
   sendMessage: async (content) => {
     // Add user message
     const newUserMessage = {
