@@ -1,27 +1,15 @@
 "use client";
 
 import React, { useState } from "react";
-import { Paperclip, Send, Sparkles, StopCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Paperclip, Sparkles, StopCircle } from "lucide-react";
 
-interface AiInputProps {
-  stackDetails: any;
-  sendMessage: (content: string) => Promise<void>;
-  stopStreaming: () => void;
-  streamingStatus: string;
-}
-
-const AiInput: React.FC<AiInputProps> = ({
-  sendMessage,
-  stopStreaming,
-  streamingStatus,
-}) => {
+const AiInput: React.FC = () => {
   const [input, setInput] = useState("");
+  const streamingStatus = "idle"; // Mock
 
   const handleSubmit = (e?: React.FormEvent) => {
     e?.preventDefault();
-    if (input.trim() && streamingStatus !== "streaming") {
-      sendMessage(input.trim());
+    if (input.trim()) {
       setInput("");
     }
   };
@@ -76,10 +64,9 @@ const AiInput: React.FC<AiInputProps> = ({
               <Sparkles size={20} />
             </button>
 
-            {streamingStatus === "streaming" && (
+            {streamingStatus === "idle" && (
               <button
                 type="button"
-                onClick={stopStreaming}
                 className="ml-auto text-muted-foreground hover:text-foreground transition-colors"
               >
                 <StopCircle size={20} />
