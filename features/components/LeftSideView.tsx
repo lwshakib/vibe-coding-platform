@@ -1,13 +1,15 @@
 "use client";
 
 import React, { useState } from "react";
+import { useWorkspaceStore } from "@/context";
 import AiInput from "./AiInput";
 
 const LeftSideView: React.FC = () => {
+  const { currentWorkspace } = useWorkspaceStore();
   const [isEditingName, setIsEditingName] = useState(false);
-  const [nameInput, setNameInput] = useState("My Project");
+  const [nameInput, setNameInput] = useState("");
 
-  const currentName = nameInput;
+  const currentName = currentWorkspace?.name || nameInput || "My Project";
 
   const startEditing = () => {
     setIsEditingName(true);

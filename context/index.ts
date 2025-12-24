@@ -24,6 +24,8 @@ interface WorkspaceStore {
   messages: any[];
   setMessages: (messages: any[] | ((messages: any[]) => any[])) => void;
   stackDetails: any;
+  currentWorkspace: Workspace | null;
+  setCurrentWorkspace: (workspace: Workspace | null) => void;
   sendMessage: (content: string) => Promise<void>;
   streamingStatus: StreamingStatus;
   stopStreaming: () => void;
@@ -49,6 +51,8 @@ export const useWorkspaceStore = create<WorkspaceStore>((set) => ({
         typeof messages === "function" ? messages(state.messages) : messages,
     })),
   stackDetails: { stack: { name: "Mock Project" } },
+  currentWorkspace: null,
+  setCurrentWorkspace: (workspace) => set({ currentWorkspace: workspace }),
   streamingStatus: "idle",
   stopStreaming: () => set({ streamingStatus: "idle" }),
   activeTab: "code-editor",

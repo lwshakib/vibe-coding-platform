@@ -12,6 +12,7 @@ import {
   RefreshCw,
   ListCollapse,
 } from "lucide-react";
+import { useWorkspaceStore } from "@/context";
 import React, { useState, useMemo } from "react";
 
 type FileNode = {
@@ -22,65 +23,51 @@ type FileNode = {
   isOpen?: boolean;
 };
 
-// Expanded mock data to match the image structure better for demonstration
-const initialFiles: FileNode[] = [
-  {
-    id: "root",
-    name: "vibe-coding-platform",
-    type: "folder",
-    isOpen: true,
-    children: [
-      { id: "prisma", name: "prisma", type: "folder" },
-      { id: "public", name: "public", type: "folder" },
-      {
-        id: "src",
-        name: "src",
-        type: "folder",
-        isOpen: true,
-        children: [
-          { id: "app", name: "app", type: "folder" },
-          { id: "components", name: "components", type: "folder" },
-          { id: "context", name: "context", type: "folder" },
-          { id: "hooks", name: "hooks", type: "folder" },
-          { id: "lib", name: "lib", type: "folder" },
-          {
-            id: "llm",
-            name: "llm",
-            type: "folder",
-            isOpen: true,
-            children: [
-              { id: "constants", name: "constants.ts", type: "file" },
-              { id: "model", name: "model.ts", type: "file" },
-              { id: "prompts", name: "prompts.ts", type: "file" },
-              { id: "stream-text", name: "stream-text.ts", type: "file" },
-              {
-                id: "switchable-stream",
-                name: "switchable-stream.ts",
-                type: "file",
-              },
-              { id: "template-guess", name: "template-guess.ts", type: "file" },
-              { id: "templates", name: "templates.ts", type: "file" },
-            ],
-          },
-          { id: "server", name: "server", type: "folder" },
-          { id: "utils", name: "utils", type: "folder" },
-          { id: "middleware", name: "middleware.ts", type: "file" },
-        ],
-      },
-      { id: "env-example", name: ".env.example", type: "file" },
-      { id: "gitignore", name: ".gitignore", type: "file" },
-      { id: "components-json", name: "components.json", type: "file" },
-      { id: "contributing", name: "CONTRIBUTING.md", type: "file" },
-      { id: "license", name: "LICENSE", type: "file" },
-      { id: "next-config", name: "next.config.ts", type: "file" },
-      { id: "package-lock", name: "package-lock.json", type: "file" },
-      { id: "package", name: "package.json", type: "file" },
-      { id: "postcss", name: "postcss.config.mjs", type: "file" },
-      { id: "readme", name: "README.md", type: "file" },
-      { id: "tsconfig", name: "tsconfig.json", type: "file" },
-    ],
-  },
-];
+const transformFilesToTree = (files: Record<string, any>): FileNode[] => {
+  const root: FileNode[] = [];
+
+  Object.keys(files).forEach((path) => {
+    const parts = path.split("/");
+    let currentLevel = root;
+
+    parts.forEach((part, index) => {
+      const isFile = index === parts.length - 1;
+      let existingNode = currentLevel.find((node) => node.name === part);
+
+      if (!existingNode) {
+        existingNode = {
+          id: parts.slice(0, index + 1).join("/"),
+          name: part,
+          type: isFile ? "file" : "folder",
+          children: isFile ? undefined : [],
+        };
+        currentLevel.push(existingNode);
+      }
+
+      if (!isFile) {
+        currentLevel = existingNode.children!;
+      }
+    });
+  });
+
+  const sortNodes = (nodes: FileNode[]) => {
+    nodes.sort((a, b) => {
+      if (a.type === b.type) {
+        return a.name.localeCompare(b.name);
+      }
+      return a.type === "folder" ? -1 : 1;
+    });
+
+    nodes.forEach((node) => {
+      if (node.children) {
+        sortNodes(node.children);
+      }
+    });
+  };
+
+  sortNodes(root);
+  return root;
+};
 
 const getFileIcon = (filename: string) => {
   const ext = filename.split(".").pop()?.toLowerCase();
@@ -191,8 +178,14 @@ const FileTreeItem = ({
 };
 
 export default function FileExplorer() {
+  const { currentWorkspace } = useWorkspaceStore();
   const [activeTab, setActiveTab] = useState<"files" | "search">("files");
   const [searchQuery, setSearchQuery] = useState("");
+
+  const files = useMemo(() => {
+    if (!currentWorkspace?.files) return [];
+    return transformFilesToTree(currentWorkspace.files);
+  }, [currentWorkspace?.files]);
 
   const flattenFiles = (nodes: FileNode[]): FileNode[] => {
     let result: FileNode[] = [];
@@ -207,7 +200,7 @@ export default function FileExplorer() {
     return result;
   };
 
-  const allFiles = useMemo(() => flattenFiles(initialFiles), []);
+  const allFiles = useMemo(() => flattenFiles(files), [files]);
 
   const searchResults = useMemo(() => {
     if (!searchQuery) return [];
@@ -250,7 +243,7 @@ export default function FileExplorer() {
           <>
             <div className="flex items-center justify-between px-3 py-2 text-xs text-[#cccccc] font-medium uppercase tracking-wider hover:text-white cursor-pointer group shrink-0">
               <span className="font-bold">Explorer</span>
-              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="flex items-center gap-1 transition-opacity">
                 <button
                   className="p-0.5 hover:bg-[#3f3f46] rounded text-[#cccccc] hover:text-white transition-colors"
                   title="New File"
@@ -278,7 +271,7 @@ export default function FileExplorer() {
               </div>
             </div>
             <div className="flex-1 overflow-auto overflow-x-hidden">
-              {initialFiles.map((node) => (
+              {files.map((node) => (
                 <FileTreeItem key={node.id} node={node} />
               ))}
             </div>
