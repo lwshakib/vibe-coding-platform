@@ -28,6 +28,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { motion, AnimatePresence } from "framer-motion";
+import { ArrowLeft, ArrowRight } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { AppType } from "@/generated/prisma/enums";
+import { WORKSPACE_REGISTRY } from "@/lib/workspace-registry";
 
 const generateGradientThumbnail = () => {
   const gradients = [
@@ -90,6 +95,8 @@ export default function WorkspacesPage() {
   const [creating, setCreating] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState("");
+  const [appType, setAppType] = useState<AppType>(AppType.REACT_TS);
+  const [step, setStep] = useState(0);
   const [createError, setCreateError] = useState<string | null>(null);
   const router = useRouter();
   const { data: session } = authClient.useSession();
@@ -130,7 +137,7 @@ export default function WorkspacesPage() {
       const res = await fetch("/api/workspaces", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, app_type: appType }),
       });
       if (!res.ok) {
         throw new Error("Failed to create workspace");
@@ -142,6 +149,7 @@ export default function WorkspacesPage() {
       ]);
       setCreateDialogOpen(false);
       setNewWorkspaceName("");
+      setStep(0);
     } catch (err) {
       console.error(err);
       setCreateError("Unable to create workspace.");
@@ -205,7 +213,17 @@ export default function WorkspacesPage() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+          <Dialog
+            open={createDialogOpen}
+            onOpenChange={(open) => {
+              setCreateDialogOpen(open);
+              if (!open) {
+                setStep(0);
+                setNewWorkspaceName("");
+                setCreateError(null);
+              }
+            }}
+          >
             <DialogTrigger asChild>
               <Button
                 size="sm"
@@ -215,62 +233,161 @@ export default function WorkspacesPage() {
                 New Workspace
               </Button>
             </DialogTrigger>
-            <DialogContent className="bg-[#0c0c12] border-white/10">
+            <DialogContent className="bg-[#0c0c12] border-white/10 sm:max-w-md overflow-hidden">
               <DialogHeader>
                 <DialogTitle className="text-white">
-                  Create workspace
+                  {step === 0 ? "Create workspace" : "Choose your stack"}
                 </DialogTitle>
                 <DialogDescription className="text-white/70">
-                  Give your workspace a name. You can change it later.
+                  {step === 0
+                    ? "Give your workspace a name. You can change it later."
+                    : "Select the framework you want to use for this project."}
                 </DialogDescription>
               </DialogHeader>
-              <form
-                className="space-y-4"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  if (!newWorkspaceName.trim()) {
-                    setCreateError("Please enter a workspace name.");
-                    return;
-                  }
-                  createWorkspace();
-                }}
-              >
-                <div className="space-y-2">
-                  <label className="text-sm text-white/80">
-                    Workspace name
-                  </label>
-                  <Input
-                    autoFocus
-                    value={newWorkspaceName}
-                    onChange={(e) => {
-                      setNewWorkspaceName(e.target.value);
-                      if (createError) setCreateError(null);
-                    }}
-                    placeholder="e.g. Product Discovery"
-                    className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
-                  />
-                  {createError ? (
-                    <p className="text-xs text-red-300">{createError}</p>
-                  ) : null}
+
+              <div className="mt-2 h-1 w-full bg-white/5 overflow-hidden rounded-full">
+                <motion.div
+                  className="h-full bg-white transition-all duration-300"
+                  initial={{ width: "0%" }}
+                  animate={{ width: step === 0 ? "50%" : "100%" }}
+                />
+              </div>
+
+              <div className="relative min-h-44">
+                <AnimatePresence mode="wait">
+                  {step === 0 ? (
+                    <motion.div
+                      key="step1"
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -20 }}
+                      transition={{ duration: 0.2 }}
+                      className="space-y-4 pt-2"
+                    >
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-white/80">
+                          Workspace name
+                        </label>
+                        <Input
+                          autoFocus
+                          value={newWorkspaceName}
+                          onChange={(e) => {
+                            setNewWorkspaceName(e.target.value);
+                            if (createError) setCreateError(null);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && newWorkspaceName.trim()) {
+                              setStep(1);
+                            }
+                          }}
+                          placeholder="e.g. My Awesome Project"
+                          className="bg-white/5 border-white/10 text-white placeholder:text-white/40 h-11"
+                        />
+                        {createError ? (
+                          <p className="text-xs text-red-400 font-medium">
+                            {createError}
+                          </p>
+                        ) : null}
+                      </div>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="step2"
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -20 }}
+                      transition={{ duration: 0.2 }}
+                      className="space-y-4 pt-2"
+                    >
+                      <div className="grid grid-cols-2 gap-3">
+                        {WORKSPACE_REGISTRY.map((template) => (
+                          <button
+                            key={template.type}
+                            type="button"
+                            onClick={() => setAppType(template.type)}
+                            className={cn(
+                              "group flex flex-col items-center justify-center gap-3 rounded-2xl border p-6 transition-all",
+                              appType === template.type
+                                ? "border-white bg-white/10 ring-1 ring-white/20"
+                                : "border-white/5 bg-white/2 hover:bg-white/5 hover:border-white/20"
+                            )}
+                          >
+                            <div
+                              className={cn(
+                                "flex h-10 w-10 items-center justify-center transition-transform group-hover:scale-110",
+                                template.type === AppType.NEXT_TS &&
+                                  "rounded-full bg-white p-1"
+                              )}
+                            >
+                              <img
+                                src={template.logo}
+                                alt={template.label}
+                                className="h-full w-full"
+                              />
+                            </div>
+                            <div className="text-center">
+                              <div className="text-sm font-medium text-white/90">
+                                {template.label}
+                              </div>
+                              <div className="text-[10px] text-white/40 mt-0.5 capitalize">
+                                {template.category}
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              <DialogFooter className="mt-6">
+                <div className="flex w-full items-center justify-between">
+                  {step === 1 ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => setStep(0)}
+                      className="text-white/60 hover:text-white hover:bg-white/5 px-2"
+                    >
+                      <ArrowLeft className="mr-2 h-4 w-4" />
+                      Back
+                    </Button>
+                  ) : (
+                    <div />
+                  )}
+                  <div className="flex gap-3">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => setCreateDialogOpen(false)}
+                      className="text-white/60 hover:text-white hover:bg-white/5 px-4"
+                    >
+                      Cancel
+                    </Button>
+                    {step === 0 ? (
+                      <Button
+                        type="button"
+                        disabled={!newWorkspaceName.trim()}
+                        onClick={() => setStep(1)}
+                        className="bg-white text-black hover:bg-white/90 px-6 font-semibold"
+                      >
+                        Next
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    ) : (
+                      <Button
+                        type="button"
+                        disabled={creating}
+                        onClick={createWorkspace}
+                        className="bg-white text-black hover:bg-white/90 px-6 font-semibold shadow-[0_0_20px_rgba(255,255,255,0.3)]"
+                      >
+                        {creating ? "Creating..." : "Create Workspace"}
+                      </Button>
+                    )}
+                  </div>
                 </div>
-                <DialogFooter className="sm:justify-end">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => setCreateDialogOpen(false)}
-                    className="text-white/80 hover:text-white"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="submit"
-                    disabled={creating || !newWorkspaceName.trim()}
-                    className="bg-white text-black hover:bg-white/90 disabled:opacity-60"
-                  >
-                    {creating ? "Creating..." : "Create"}
-                  </Button>
-                </DialogFooter>
-              </form>
+              </DialogFooter>
             </DialogContent>
           </Dialog>
         </div>
@@ -318,7 +435,21 @@ export default function WorkspacesPage() {
                           ) : null}
                           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,rgba(255,255,255,0.7),transparent_55%)] opacity-80" />
                           <div className="relative flex items-center justify-center">
-                            <div className="size-10 rounded-full bg-white/90 shadow-[0_0_30px_rgba(255,255,255,0.6)]" />
+                            <div className="flex size-11 items-center justify-center rounded-full bg-white shadow-[0_0_30px_rgba(255,255,255,0.6)] transition-transform duration-300 group-hover:scale-110">
+                              {workspace.app_type === AppType.REACT_TS ? (
+                                <img
+                                  src="/logos/react.svg"
+                                  alt="React"
+                                  className="size-6"
+                                />
+                              ) : (
+                                <img
+                                  src="/logos/nextjs.svg"
+                                  alt="Next.js"
+                                  className="size-6"
+                                />
+                              )}
+                            </div>
                           </div>
                         </div>
                       </Link>

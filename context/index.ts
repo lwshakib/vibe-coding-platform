@@ -1,11 +1,12 @@
 import { create } from "zustand";
+import { AppType } from "@/generated/prisma/enums";
 
 export type Workspace = {
   id: string;
   name: string;
-  documentData: Record<string, unknown> | null;
-  canvasData: Record<string, unknown> | null;
-  kanbanBoard: Record<string, unknown> | null;
+  userId: string;
+  app_type: AppType;
+  files: any;
   updatedAt: string;
   createdAt: string;
 };
