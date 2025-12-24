@@ -30,7 +30,7 @@ import { Download, Github, Lock, Plus } from "lucide-react";
 import { Monitor, Smartphone, Tablet } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import React, { useState } from "react";
-import CodeEditor from "./CodeEditor";
+import CodeEditor from "../editor/CodeEditor";
 import { CustomSearchBar } from "./CustomSearchBar";
 import CustomTabs from "./CustomTabs";
 import WebPreview from "./WebPreview";
