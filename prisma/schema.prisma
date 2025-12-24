@@ -13,6 +13,16 @@ datasource db {
   provider = "postgresql"
 }
 
+enum AppType {
+  REACT_TS
+  NEXT_TS
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+}
+
 model User {
   id            String    @id
   name          String
@@ -23,6 +33,8 @@ model User {
   updatedAt     DateTime  @updatedAt
   sessions      Session[]
   accounts      Account[]
+  workspaces    Workspace[]
+
 
   @@unique([email])
   @@map("user")
@@ -74,4 +86,30 @@ model Verification {
 
   @@index([identifier])
   @@map("verification")
+}
+
+
+
+
+model Workspace {
+  id        String   @id @default(cuid())
+  name      String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  app_type  AppType  
+  files     Json
+  messages  Message[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+
+model Message {
+  id        String @id @default(cuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  role      MessageRole
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
