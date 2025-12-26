@@ -7,17 +7,46 @@ import UserMessage from "./UserMessage";
 import AssistantMessage from "./AssistantMessage";
 import { useChat } from "@ai-sdk/react";
 
+import { parseVibeArtifact } from "@/lib/parseVibeArtifact";
+
 const LeftSideView: React.FC = () => {
   const { currentWorkspace } = useWorkspaceStore();
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameInput, setNameInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const { messages, sendMessage } = useChat({
-    onFinish: (result) => {
-      console.log("Result:", result);
-    },
+  const {
+    messages,
+    sendMessage,
+    setMessages: setChatMessages,
+  } = useChat({
+    initialMessages: (currentWorkspace?.messages as any) || [],
   });
+
+  // Sync messages when workspace changes (e.g. navigating between workspaces)
+  useEffect(() => {
+    if (currentWorkspace?.messages) {
+      setChatMessages(currentWorkspace.messages as any);
+    }
+  }, [currentWorkspace?.id, setChatMessages]);
+  const { updateFiles } = useWorkspaceStore();
+
+  // Parse artifacts from streaming messages and update workspace files
+  useEffect(() => {
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage && lastMessage.role === "assistant") {
+      const content = getMessageText(lastMessage);
+      if (content.includes("<vibeArtifact")) {
+        const parsed = parseVibeArtifact(content);
+        const artifactFiles = parsed.files.flatFiles;
+        if (artifactFiles && Object.keys(artifactFiles).length > 0) {
+          const currentFiles = currentWorkspace?.files || {};
+          const mergedFiles = { ...currentFiles, ...artifactFiles };
+          updateFiles(mergedFiles);
+        }
+      }
+    }
+  }, [messages, updateFiles]);
 
   const currentName = currentWorkspace?.name || nameInput || "My Project";
 
@@ -81,9 +110,9 @@ const LeftSideView: React.FC = () => {
 
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto scrollbar-hide scroll-smooth"
+        className="flex-1 overflow-y-auto scroll-smooth [scrollbar-gutter:stable]"
       >
-        <div className="p-4 min-h-full flex flex-col">
+        <div className="p-4 pr-6 min-h-full flex flex-col">
           {messages.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center animate-in fade-in zoom-in-95 duration-1000">
               <div className="text-center max-w-md px-4">
@@ -149,6 +178,7 @@ const LeftSideView: React.FC = () => {
               {
                 body: {
                   files: currentWorkspace?.files,
+                  workspaceId: currentWorkspace?.id,
                 },
               }
             );

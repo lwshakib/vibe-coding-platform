@@ -1,12 +1,29 @@
 import { getModelName } from "@/llm/model";
 import { streamText } from "@/llm/streamText";
 import { NextRequest, NextResponse } from "next/server";
+import prisma from "@/lib/prisma";
 
 export async function POST(req: NextRequest) {
   try {
-    const { messages, files, app_type } = await req.json();
+    const { messages, files, workspaceId } = await req.json();
 
-    const response = await streamText(messages, app_type, files);
+    // Save user message if workspaceId is provided
+    if (workspaceId) {
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage && lastMessage.role === "user") {
+        await prisma.message.create({
+          data: {
+            workspaceId,
+            role: "USER",
+            parts: lastMessage.parts || [
+              { type: "text", text: lastMessage.content },
+            ],
+          },
+        });
+      }
+    }
+
+    const response = await streamText(messages, files, workspaceId);
 
     return response.toUIMessageStreamResponse();
   } catch (error: any) {

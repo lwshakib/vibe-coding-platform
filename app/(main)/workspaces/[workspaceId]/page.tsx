@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import LeftSideView from "@/features/components/LeftSideView";
 import RightSideView from "@/features/components/RightSideView";
 import { useWorkspaceStore } from "@/context";
+import { WebContainerProvider } from "@/context/WebContainerContext";
 
 export default function WorkspacePage() {
   const params = useParams();
@@ -56,18 +57,20 @@ export default function WorkspacePage() {
   }
 
   return (
-    <div className="w-full h-screen relative flex text-white overflow-hidden">
-      {/* Left Side: Chat & File Tree */}
-      <div className="w-full md:w-112.5 shrink-0">
-        <div className="h-full w-full overflow-hidden">
-          <LeftSideView />
+    <WebContainerProvider>
+      <div className="w-full h-screen relative flex text-white overflow-hidden">
+        {/* Left Side: Chat & File Tree */}
+        <div className="w-full md:w-112.5 shrink-0">
+          <div className="h-full w-full overflow-hidden">
+            <LeftSideView />
+          </div>
+        </div>
+
+        {/* Right Side: Preview/Editor */}
+        <div className="flex-1 min-w-0">
+          <RightSideView />
         </div>
       </div>
-
-      {/* Right Side: Preview/Editor */}
-      <div className="flex-1 min-w-0">
-        <RightSideView />
-      </div>
-    </div>
+    </WebContainerProvider>
   );
 }

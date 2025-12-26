@@ -16,6 +16,7 @@ export interface ParsedVibeArtifact {
   files: {
     title: string;
     files: Record<string, FileNode>;
+    flatFiles: Record<string, { content: string }>;
   };
   progress: {
     files: FileProgress[];
@@ -33,6 +34,7 @@ export function parseVibeArtifact(input: string): ParsedVibeArtifact {
     files: {
       title: "",
       files: {},
+      flatFiles: {},
     },
     progress: {
       files: [],
@@ -89,6 +91,9 @@ export function parseVibeArtifact(input: string): ParsedVibeArtifact {
 
     // Clean up content (remove trailing incomplete tags)
     fileContent = fileContent.replace(/<[^>]*$/, "").trim();
+
+    // Add to flatFiles
+    result.files.flatFiles[filePath] = { content: fileContent };
 
     const parts = filePath.split("/");
     let current: Record<string, FileNode> = result.files.files;

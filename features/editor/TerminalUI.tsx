@@ -6,12 +6,15 @@ import { FitAddon } from "@xterm/addon-fit";
 import "xterm/css/xterm.css";
 import { Terminal as TerminalIcon } from "lucide-react";
 import { useTheme } from "next-themes";
+import { useWebContainerContext } from "@/context/WebContainerContext";
 
 export default function TerminalUI() {
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<XTerm | null>(null);
+  const shellProcessRef = useRef<any>(null);
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const { instance, terminalRef: globalTerminalRef } = useWebContainerContext();
 
   useEffect(() => {
     setMounted(true);
@@ -48,27 +51,16 @@ export default function TerminalUI() {
 
     term.open(terminalRef.current);
 
+    // Set global ref so useWebContainer can write to it
+    globalTerminalRef.current = term;
+
     const timer = setTimeout(() => {
       fitAddon.fit();
     }, 100);
 
     term.writeln("\x1b[32mWelcome to Vibe Terminal\x1b[0m");
-    term.writeln("Interactive coding environment starting...");
-    term.writeln("");
-    term.write("\x1b[34m➜ \x1b[36m~\x1b[0m ");
 
     xtermRef.current = term;
-
-    term.onData((data) => {
-      const code = data.charCodeAt(0);
-      if (code === 13) {
-        term.write("\r\n\x1b[34m➜ \x1b[36m~\x1b[0m ");
-      } else if (code === 127 || code === 8) {
-        term.write("\b \b");
-      } else {
-        term.write(data);
-      }
-    });
 
     const resizeObserver = new ResizeObserver(() => {
       fitAddon.fit();
@@ -82,8 +74,50 @@ export default function TerminalUI() {
       resizeObserver.disconnect();
       clearTimeout(timer);
       term.dispose();
+      globalTerminalRef.current = null;
     };
-  }, [mounted, theme, resolvedTheme]);
+  }, [mounted, theme, resolvedTheme, globalTerminalRef]);
+
+  // Handle shell interaction
+  useEffect(() => {
+    if (!instance || !xtermRef.current) return;
+
+    let shellProcess: any;
+
+    const startShell = async () => {
+      shellProcess = await instance.spawn("jsh", {
+        terminal: {
+          cols: xtermRef.current!.cols,
+          rows: xtermRef.current!.rows,
+        },
+      });
+
+      shellProcess.output.pipeTo(
+        new WritableStream({
+          write(data) {
+            xtermRef.current?.write(data);
+          },
+        })
+      );
+
+      const input = shellProcess.input.getWriter();
+
+      const onData = xtermRef.current!.onData((data) => {
+        input.write(data);
+      });
+
+      shellProcessRef.current = { shellProcess, onData };
+    };
+
+    startShell();
+
+    return () => {
+      if (shellProcessRef.current) {
+        shellProcessRef.current.onData.dispose();
+        shellProcessRef.current.shellProcess.kill();
+      }
+    };
+  }, [instance]);
 
   return (
     <div className="h-full w-full bg-background flex flex-col overflow-hidden">

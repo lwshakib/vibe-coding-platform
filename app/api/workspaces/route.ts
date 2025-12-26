@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Default values if not provided
-    const type = (app_type || AppType.REACT_TS) as AppType;
+    const type = (app_type || AppType.VITE_APP) as AppType;
 
     // Get template from registry
     const template = getTemplateByType(type);

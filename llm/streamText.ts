@@ -26,15 +26,40 @@ export type Messages = Message[];
 
 export type StreamingOptions = Omit<Parameters<typeof _streamText>[0], "model">;
 
-export async function streamText(messages: Messages, app_type: AppType, files: any) {
+import prisma from "@/lib/prisma";
+
+export async function streamText(
+  messages: Messages,
+  files: any,
+  workspaceId?: string
+) {
   return _streamText({
     model: GeminiModel(),
-    system: getFineTunedPrompt(app_type, files),
+    system: getFineTunedPrompt(JSON.stringify(files)),
     maxOutputTokens: 65535,
     messages: await convertToModelMessages(messages as unknown as UIMessage[]),
     tools: {
       google_search: google.tools.googleSearch({}),
       url_context: google.tools.urlContext({}),
+    },
+    onFinish: async ({ text, toolCalls }) => {
+      if (workspaceId) {
+        try {
+          // Save assistant message
+          await prisma.message.create({
+            data: {
+              workspaceId,
+              role: "ASSISTANT",
+              parts: [{ type: "text", text }] as any,
+            },
+          });
+
+          // Check for file updates if any tool changed them
+          // (This logic might depend on how tools work, but for now we just save the message)
+        } catch (error) {
+          console.error("Failed to save assistant message:", error);
+        }
+      }
     },
   });
 }

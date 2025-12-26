@@ -8,26 +8,28 @@ export interface WorkspaceAppTemplate {
   folder: string;
   category: "frontend" | "backend" | "fullstack" | "mobile";
   framework: string;
+  logoStyling?: string;
 }
 
 export const WORKSPACE_REGISTRY: WorkspaceAppTemplate[] = [
   {
-    type: AppType.,
+    type: AppType.VITE_APP,
     label: "Vite - React",
     description: "Vite + React with TypeScript and Tailwind CSS.",
     logo: "/logos/react.svg",
-    folder: "react-ts",
+    folder: "vite-app",
     category: "frontend",
     framework: "React",
   },
   {
-    type: AppType.NEXT_TS,
+    type: AppType.NEXT_APP,
     label: "Next.js",
     description: "The React Framework for the Web with App Router.",
     logo: "/logos/nextjs.svg",
-    folder: "next-ts",
+    folder: "next-app",
     category: "frontend",
     framework: "Next.js",
+    logoStyling: "rounded-full bg-white p-1",
   },
 ];
 

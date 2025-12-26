@@ -34,11 +34,14 @@ import CodeEditor from "../editor/CodeEditor";
 import { CustomSearchBar } from "./CustomSearchBar";
 import CustomTabs from "./CustomTabs";
 import WebPreview from "./WebPreview";
+import { useWebContainerContext } from "@/context/WebContainerContext";
 
 type ResponsiveMode = "desktop" | "tablet" | "mobile";
 
 const RightSideView: React.FC = () => {
   const { activeTab, setActiveTab } = useWorkspaceStore();
+  const { url: previewUrl } = useWebContainerContext();
+
   const [isGithubDialogOpen, setIsGithubDialogOpen] = useState(false);
   const [isCreatingRepo, setIsCreatingRepo] = useState(false);
   const [repoName, setRepoName] = useState("");
@@ -52,12 +55,9 @@ const RightSideView: React.FC = () => {
     }
   };
 
-  // Uplifted WebPreview State
   const [url, setUrl] = useState("/");
   const [responsiveMode, setResponsiveMode] =
     useState<ResponsiveMode>("desktop");
-  const [webPreviewUrl, setWebPreviewUrl] = useState<string | null>(null);
-  const [webContainerPort, setWebContainerPort] = useState<number | null>(3000);
   const [reloadKey, setReloadKey] = useState(0);
 
   const handleRefresh = () => {
@@ -83,16 +83,15 @@ const RightSideView: React.FC = () => {
   };
 
   const handleExternalLink = () => {
-    if (webPreviewUrl) {
+    if (previewUrl) {
       const cleanPath = url.startsWith("/") ? url : `/${url}`;
-      window.open(`${webPreviewUrl}${cleanPath}`, "_blank");
+      window.open(`${previewUrl}${cleanPath}`, "_blank");
     }
   };
 
   return (
     <div className="w-full h-full flex items-center justify-center">
       <div className="w-full h-full rounded-xl flex flex-col overflow-hidden">
-        {/* RightSideView Header */}
         <header className="h-14 flex items-center justify-between shrink-0 gap-4 mr-4">
           <div className="flex items-center gap-4 flex-1">
             <CustomTabs activeTab={activeTab} onTabChange={setActiveTab} />
@@ -110,14 +109,11 @@ const RightSideView: React.FC = () => {
                     onChange={setUrl}
                     onSubmit={() => {}}
                     onRefresh={handleRefresh}
-                    onExternalLink={
-                      webPreviewUrl ? handleExternalLink : undefined
-                    }
+                    onExternalLink={previewUrl ? handleExternalLink : undefined}
                     onToggleResponsive={handleResponsiveModeToggle}
                     responsiveIcon={getResponsiveIcon()}
                     placeholder="Search or enter path..."
-                    port={webContainerPort || 3000}
-                    // disabled={!webPreviewUrl}
+                    port={3000}
                   />
                 </motion.div>
               )}
@@ -131,8 +127,6 @@ const RightSideView: React.FC = () => {
                   variant="ghost"
                   size="sm"
                   className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-accent"
-                  aria-label="Export"
-                  title="Export"
                 >
                   <Download className="w-4 h-4" />
                 </Button>
@@ -165,8 +159,6 @@ const RightSideView: React.FC = () => {
                   variant="ghost"
                   size="sm"
                   className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-accent"
-                  aria-label="GitHub"
-                  title="GitHub"
                 >
                   <Github className="w-4 h-4" />
                 </Button>
@@ -284,38 +276,36 @@ const RightSideView: React.FC = () => {
         </header>
 
         <div className="flex-1 overflow-hidden relative rounded-md border-border border m-2">
-          <AnimatePresence mode="wait">
-            {activeTab === "code-editor" ? (
-              <motion.div
-                key="editor"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.2, ease: "easeOut" }}
-                className="h-full w-full"
-              >
-                <CodeEditor />
-              </motion.div>
-            ) : (
-              <motion.div
-                key="preview"
-                initial={{ opacity: 0, scale: 0.98 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.98 }}
-                transition={{ duration: 0.2, ease: "easeOut" }}
-                className="h-full w-full"
-              >
-                <WebPreview
-                  url={url}
-                  setUrl={setUrl}
-                  responsiveMode={responsiveMode}
-                  webPreviewUrl={webPreviewUrl}
-                  webContainerPort={webContainerPort}
-                  reloadKey={reloadKey}
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <motion.div
+            initial={false}
+            animate={{
+              opacity: activeTab === "code-editor" ? 1 : 0,
+              x: activeTab === "code-editor" ? 0 : -20,
+              pointerEvents: activeTab === "code-editor" ? "auto" : "none",
+            }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="absolute inset-0 h-full w-full"
+          >
+            <CodeEditor />
+          </motion.div>
+
+          <motion.div
+            initial={false}
+            animate={{
+              opacity: activeTab === "web-preview" ? 1 : 0,
+              x: activeTab === "web-preview" ? 0 : 20,
+              pointerEvents: activeTab === "web-preview" ? "auto" : "none",
+            }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="absolute inset-0 h-full w-full"
+          >
+            <WebPreview
+              url={url}
+              setUrl={setUrl}
+              responsiveMode={responsiveMode}
+              reloadKey={reloadKey}
+            />
+          </motion.div>
         </div>
       </div>
     </div>

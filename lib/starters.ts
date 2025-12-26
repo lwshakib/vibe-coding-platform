@@ -9,20 +9,29 @@ export function getInitialFiles(
 
   // Files and directories to ignore (similar to .gitignore)
   const ignoredItems = new Set([
-    'node_modules',
-    '.next',
-    '.git',
-    'build',
-    'out',
-    'coverage',
-    '.vercel',
-    '.DS_Store',
-    'generated'
+    "node_modules",
+    ".next",
+    ".git",
+    "build",
+    "out",
+    "coverage",
+    ".vercel",
+    ".DS_Store",
+    "generated",
   ]);
 
   const ignoredExtensions = new Set([
-    '.pem',
-    '.tsbuildinfo'
+    ".pem",
+    ".tsbuildinfo",
+    ".ico",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".woff",
+    ".woff2",
+    ".ttf",
+    ".eot",
   ]);
 
   const ignoredPatterns = [
@@ -34,19 +43,19 @@ export function getInitialFiles(
     /package-lock\.json$/,
     /bun\.lock$/,
     /yarn\.lock$/,
-    /pnpm-lock\.yaml$/
+    /pnpm-lock\.yaml$/,
   ];
 
   function shouldIgnore(itemName: string): boolean {
     // Check ignored items
     if (ignoredItems.has(itemName)) return true;
-    
+
     // Check ignored extensions
     const ext = path.extname(itemName);
     if (ignoredExtensions.has(ext)) return true;
-    
+
     // Check ignored patterns
-    return ignoredPatterns.some(pattern => pattern.test(itemName));
+    return ignoredPatterns.some((pattern) => pattern.test(itemName));
   }
 
   function traverse(currentDir: string, relativePath: string = "") {
@@ -64,7 +73,10 @@ export function getInitialFiles(
         traverse(fullPath, relPath);
       } else {
         // Read file content
-        const content = fs.readFileSync(fullPath, "utf-8");
+        let content = fs.readFileSync(fullPath, "utf-8");
+        // Remove null bytes which are not supported by Postgres jsonb
+        content = content.replace(/\0/g, "");
+
         // Normalize path to use forward slashes for the DB
         const normalizedPath = relPath.replace(/\\/g, "/");
         files[normalizedPath] = { content };

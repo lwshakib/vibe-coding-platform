@@ -32,7 +32,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AppType } from "@/generated/prisma/enums";
-import { WORKSPACE_REGISTRY } from "@/lib/workspace-registry";
+import {
+  WORKSPACE_REGISTRY,
+  getTemplateByType,
+} from "@/lib/workspace-registry";
 
 const generateGradientThumbnail = () => {
   const gradients = [
@@ -95,7 +98,7 @@ export default function WorkspacesPage() {
   const [creating, setCreating] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState("");
-  const [appType, setAppType] = useState<AppType>(AppType.REACT_TS);
+  const [appType, setAppType] = useState<AppType>(AppType.VITE_APP);
   const [step, setStep] = useState(0);
   const [createError, setCreateError] = useState<string | null>(null);
   const router = useRouter();
@@ -315,8 +318,7 @@ export default function WorkspacesPage() {
                             <div
                               className={cn(
                                 "flex h-10 w-10 items-center justify-center transition-transform group-hover:scale-110",
-                                template.type === AppType.NEXT_TS &&
-                                  "rounded-full bg-white p-1"
+                                template.logoStyling
                               )}
                             >
                               <img
@@ -436,19 +438,21 @@ export default function WorkspacesPage() {
                           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,rgba(255,255,255,0.7),transparent_55%)] opacity-80" />
                           <div className="relative flex items-center justify-center">
                             <div className="flex size-11 items-center justify-center rounded-full bg-white shadow-[0_0_30px_rgba(255,255,255,0.6)] transition-transform duration-300 group-hover:scale-110">
-                              {workspace.app_type === AppType.REACT_TS ? (
-                                <img
-                                  src="/logos/react.svg"
-                                  alt="React"
-                                  className="size-6"
-                                />
-                              ) : (
-                                <img
-                                  src="/logos/nextjs.svg"
-                                  alt="Next.js"
-                                  className="size-6"
-                                />
-                              )}
+                              {(() => {
+                                const template = getTemplateByType(
+                                  workspace.app_type
+                                );
+                                return (
+                                  <img
+                                    src={template?.logo || "/logos/react.svg"}
+                                    alt={template?.label || "Workspace"}
+                                    className={cn(
+                                      "size-6",
+                                      template?.logoStyling
+                                    )}
+                                  />
+                                );
+                              })()}
                             </div>
                           </div>
                         </div>
