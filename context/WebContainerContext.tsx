@@ -16,6 +16,7 @@ interface WebContainerContextType {
     | "ready"
     | "error";
   url: string | null;
+  port: number | null;
   error: string | null;
   instance: WebContainer | null;
   terminalRef: React.MutableRefObject<Terminal | null>;

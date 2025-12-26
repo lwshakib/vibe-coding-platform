@@ -14,8 +14,9 @@ datasource db {
 }
 
 enum AppType {
-  VITE_APP  
+  VITE_APP
   NEXT_APP
+  EXPRESS_APP
 }
 
 enum MessageRole {

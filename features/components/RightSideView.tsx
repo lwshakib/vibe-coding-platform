@@ -40,7 +40,7 @@ type ResponsiveMode = "desktop" | "tablet" | "mobile";
 
 const RightSideView: React.FC = () => {
   const { activeTab, setActiveTab } = useWorkspaceStore();
-  const { url: previewUrl } = useWebContainerContext();
+  const { url: previewUrl, port } = useWebContainerContext();
 
   const [isGithubDialogOpen, setIsGithubDialogOpen] = useState(false);
   const [isCreatingRepo, setIsCreatingRepo] = useState(false);
@@ -113,7 +113,7 @@ const RightSideView: React.FC = () => {
                     onToggleResponsive={handleResponsiveModeToggle}
                     responsiveIcon={getResponsiveIcon()}
                     placeholder="Search or enter path..."
-                    port={3000}
+                    port={port || 3000}
                   />
                 </motion.div>
               )}

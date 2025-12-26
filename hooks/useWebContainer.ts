@@ -19,6 +19,7 @@ export function useWebContainer(
   const [instance, setInstance] = useState<WebContainer | null>(null);
   const [state, setState] = useState<WebContainerState>("idle");
   const [url, setUrl] = useState<string | null>(null);
+  const [port, setPort] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const mountedFilesRef = useRef<Record<string, string>>({});
@@ -50,7 +51,7 @@ export function useWebContainer(
             },
           };
         } else {
-          if (!current[part]) {
+          if (!current[part] || (current[part] as any).file) {
             current[part] = {
               directory: {},
             };
@@ -150,6 +151,7 @@ export function useWebContainer(
 
           wc.on("server-ready", (port, url) => {
             setUrl(url);
+            setPort(port);
             setState("ready");
             isStartedRef.current = true;
             writeToTerminal(`\x1b[32mServer ready at ${url}\x1b[0m\r\n`);
@@ -177,5 +179,5 @@ export function useWebContainer(
     }
   }, [files, instance, boot, mountAndRun]);
 
-  return { instance, state, url, error };
+  return { instance, state, url, port, error };
 }

@@ -27,9 +27,19 @@ export const WORKSPACE_REGISTRY: WorkspaceAppTemplate[] = [
     description: "The React Framework for the Web with App Router.",
     logo: "/logos/nextjs.svg",
     folder: "next-app",
-    category: "frontend",
+    category: "fullstack",
     framework: "Next.js",
     logoStyling: "rounded-full bg-white p-1",
+  },
+  {
+    type: AppType.EXPRESS_APP,
+    label: "Express",
+    description: "Fast, unopinionated, minimalist web framework for Node.js.",
+    logo: "/logos/express.svg",
+    folder: "express-app",
+    category: "backend",
+    framework: "Express",
+    logoStyling: "bg-white p-1 rounded-md",
   },
 ];
 

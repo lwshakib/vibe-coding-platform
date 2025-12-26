@@ -50,6 +50,15 @@ const transformFilesToTree = (files: Record<string, any>): FileNode[] => {
 
     parts.forEach((part, index) => {
       const isFile = index === parts.length - 1;
+
+      // Ensure currentLevel is defined before find
+      if (!currentLevel) {
+        console.warn(
+          `Unexpected undefined currentLevel at path: ${path}, part: ${part}`
+        );
+        return;
+      }
+
       let existingNode = currentLevel.find((node) => node.name === part);
 
       if (!existingNode) {
@@ -60,10 +69,14 @@ const transformFilesToTree = (files: Record<string, any>): FileNode[] => {
           children: isFile ? undefined : [],
         };
         currentLevel.push(existingNode);
+      } else if (!isFile && existingNode.type === "file") {
+        // Handle case where a part was previously identified as a file but now has sub-parts
+        existingNode.type = "folder";
+        existingNode.children = [];
       }
 
       if (!isFile) {
-        currentLevel = existingNode.children!;
+        currentLevel = existingNode.children || [];
       }
     });
   });
