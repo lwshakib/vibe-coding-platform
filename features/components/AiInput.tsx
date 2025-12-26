@@ -39,7 +39,7 @@ const AiInput: React.FC<AiInputProps> = ({ onSend }) => {
       <div className="mx-auto w-full max-w-lg">
         {/* Token Counter Badge */}
         <div className="relative h-6.5">
-          <div className="bg-secondary/50 absolute top-0 left-2 flex w-[calc(100%-1rem)] justify-between items-center rounded-t-lg border border-border px-2 py-1 text-xs opacity-100 backdrop-blur transition-opacity duration-350">
+          <div className="bg-muted absolute top-0 left-2 flex w-[calc(100%-1rem)] justify-between items-center rounded-t-lg border border-border px-2 py-1 text-xs opacity-100 backdrop-blur transition-opacity duration-350">
             <span className="text-muted-foreground">
               150K daily tokens remaining.
             </span>
@@ -52,7 +52,7 @@ const AiInput: React.FC<AiInputProps> = ({ onSend }) => {
         {/* Input Box */}
         <form
           onSubmit={handleSubmit}
-          className="relative flex flex-col bg-secondary/50 rounded-lg border border-border p-4 shadow-xs backdrop-blur"
+          className="relative flex flex-col bg-muted/50 dark:bg-secondary/50 rounded-lg border border-border p-4 shadow-sm backdrop-blur"
         >
           <textarea
             rows={1}

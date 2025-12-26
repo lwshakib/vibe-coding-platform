@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/accordion";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import HtmlContent from "@/components/ui/html-content";
+import MarkdownContent from "./MarkdownContent";
 import { useWorkspaceStore } from "@/context";
 import { parseVibeArtifact } from "@/lib/parseVibeArtifact";
 import { Bot, CheckCircle, Clock, Loader2 } from "lucide-react";
@@ -84,11 +84,11 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
           {parsedContent.introduction ||
           hasFiles ||
           (parsedContent.conclusion && !isStreaming) ? (
-            <div className="bg-muted/40 border border-border/40 rounded-2xl p-4 shadow-sm backdrop-blur-md">
+            <div className="bg-muted border border-border rounded-2xl p-4 shadow-sm">
               <div className="space-y-4">
                 {/* Introduction Text */}
                 {parsedContent.introduction && (
-                  <HtmlContent
+                  <MarkdownContent
                     content={parsedContent.introduction}
                     className="text-sm leading-relaxed prose-p:my-2 first:prose-p:mt-0 last:prose-p:mb-0"
                   />
@@ -113,7 +113,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
                                 <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
                               )}
                             </div>
-                            <span className="text-foreground/90">
+                            <span className="text-foreground font-medium">
                               {parsedContent.files.title ||
                                 "Vibe is working..."}
                             </span>
@@ -163,7 +163,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
                 {/* Conclusion Text */}
                 {parsedContent.conclusion && (
                   <div className="pt-2 animate-in fade-in slide-in-from-top-2 duration-700">
-                    <HtmlContent
+                    <MarkdownContent
                       content={parsedContent.conclusion}
                       className="text-sm leading-relaxed border-t border-border/20 pt-4"
                     />
@@ -173,7 +173,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
             </div>
           ) : (
             /* Fallback for plain text messages OR initial state */
-            <div className="bg-muted/40 border border-border/40 rounded-2xl p-4 shadow-sm backdrop-blur-md">
+            <div className="bg-muted border border-border rounded-2xl p-4 shadow-sm">
               <div className="flex flex-col gap-2">
                 {isStreaming && content === "" && (
                   <div className="flex gap-1.5 p-1">
@@ -182,9 +182,10 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
                     <div className="w-1.5 h-1.5 bg-foreground/30 rounded-full animate-bounce"></div>
                   </div>
                 )}
-                <p className="text-sm leading-relaxed whitespace-pre-wrap prose prose-sm prose-invert max-w-none wrap-break-word">
-                  {content}
-                </p>
+                <MarkdownContent
+                  content={content}
+                  className="text-sm leading-relaxed"
+                />
               </div>
             </div>
           )}

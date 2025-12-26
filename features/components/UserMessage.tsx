@@ -1,5 +1,6 @@
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import React from "react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import MarkdownContent from "./MarkdownContent";
 
 interface UserMessageProps {
   content: string;
@@ -11,9 +12,10 @@ const UserMessage: React.FC<UserMessageProps> = ({ content }) => {
       <div className="flex items-start gap-4 max-w-[85%]">
         <div className="flex flex-col items-end flex-1 min-w-0">
           <div className="bg-primary/10 text-foreground border border-primary/20 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow duration-200">
-            <p className="text-sm leading-relaxed whitespace-pre-wrap wrap-break-word">
-              {content}
-            </p>
+            <MarkdownContent
+              content={content}
+              className="text-sm leading-relaxed"
+            />
           </div>
         </div>
         <Avatar className="h-10 w-10 shrink-0 border-2 border-primary/20 shadow-sm">
