@@ -76,15 +76,15 @@ const WorkspacesSkeleton = () => (
   <div className="grid grid-cols-2 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
     {[...Array(10)].map((_, idx) => (
       <div key={idx} className="flex flex-col gap-2">
-        <div className="group block w-full aspect-square rounded-3xl bg-[#101018] p-px text-left">
-          <div className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-[1.3rem] bg-[#101018]">
-            <Skeleton className="absolute inset-0 h-full w-full bg-white/10" />
-            <Skeleton className="relative size-12 rounded-full bg-white/20" />
+        <div className="group block w-full aspect-square rounded-3xl bg-card border border-border p-px text-left">
+          <div className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-[1.3rem] bg-card">
+            <Skeleton className="absolute inset-0 h-full w-full bg-muted/50" />
+            <Skeleton className="relative size-12 rounded-full bg-muted" />
           </div>
         </div>
-        <div className="px-1 text-[11px] text-white/90 space-y-1">
-          <Skeleton className="h-4 w-24 bg-white/20" />
-          <Skeleton className="h-3 w-28 bg-white/10" />
+        <div className="px-1 text-[11px] text-muted-foreground space-y-1">
+          <Skeleton className="h-4 w-24 bg-muted" />
+          <Skeleton className="h-3 w-28 bg-muted/80" />
         </div>
       </div>
     ))}
@@ -170,9 +170,9 @@ export default function WorkspacesPage() {
       {/* Top chrome */}
       <header className="flex items-center justify-between px-6 pt-4 sm:px-10 lg:px-16">
         <div className="flex items-center gap-3">
-          <Logo className="text-white" />
+          <Logo className="text-foreground" />
         </div>
-        <div className="flex items-center gap-4 text-xs text-white/60">
+        <div className="flex items-center gap-4 text-xs text-muted-foreground">
           <span className="hidden text-[11px] sm:inline">Limited credits</span>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -231,26 +231,26 @@ export default function WorkspacesPage() {
               <Button
                 size="sm"
                 disabled={creating}
-                className="h-8 rounded-full bg-white px-4 text-[11px] font-semibold text-black shadow-[0_0_40px_rgba(255,255,255,0.4)] hover:bg-white/90 disabled:opacity-60"
+                className="h-8 rounded-full bg-primary px-4 text-[11px] font-semibold text-primary-foreground shadow-lg hover:bg-primary/90 disabled:opacity-60"
               >
                 New Workspace
               </Button>
             </DialogTrigger>
-            <DialogContent className="bg-[#0c0c12] border-white/10 sm:max-w-md overflow-hidden">
+            <DialogContent className="bg-background border-border sm:max-w-md overflow-hidden">
               <DialogHeader>
-                <DialogTitle className="text-white">
+                <DialogTitle className="text-foreground">
                   {step === 0 ? "Create workspace" : "Choose your stack"}
                 </DialogTitle>
-                <DialogDescription className="text-white/70">
+                <DialogDescription className="text-muted-foreground">
                   {step === 0
                     ? "Give your workspace a name. You can change it later."
                     : "Select the framework you want to use for this project."}
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="mt-2 h-1 w-full bg-white/5 overflow-hidden rounded-full">
+              <div className="mt-2 h-1 w-full bg-muted overflow-hidden rounded-full">
                 <motion.div
-                  className="h-full bg-white transition-all duration-300"
+                  className="h-full bg-primary transition-all duration-300"
                   initial={{ width: "0%" }}
                   animate={{ width: step === 0 ? "50%" : "100%" }}
                 />
@@ -268,7 +268,7 @@ export default function WorkspacesPage() {
                       className="space-y-4 pt-2"
                     >
                       <div className="space-y-2">
-                        <label className="text-sm font-medium text-white/80">
+                        <label className="text-sm font-medium text-foreground">
                           Workspace name
                         </label>
                         <Input
@@ -284,7 +284,7 @@ export default function WorkspacesPage() {
                             }
                           }}
                           placeholder="e.g. My Awesome Project"
-                          className="bg-white/5 border-white/10 text-white placeholder:text-white/40 h-11"
+                          className="bg-background border-input text-foreground placeholder:text-muted-foreground h-11"
                         />
                         {createError ? (
                           <p className="text-xs text-red-400 font-medium">
@@ -311,8 +311,8 @@ export default function WorkspacesPage() {
                             className={cn(
                               "group flex flex-col items-center justify-center gap-3 rounded-2xl border p-6 transition-all",
                               appType === template.type
-                                ? "border-white bg-white/10 ring-1 ring-white/20"
-                                : "border-white/5 bg-white/2 hover:bg-white/5 hover:border-white/20"
+                                ? "border-primary bg-accent ring-1 ring-primary/20"
+                                : "border-border bg-card hover:bg-accent/50 hover:border-primary/20"
                             )}
                           >
                             <div
@@ -328,10 +328,10 @@ export default function WorkspacesPage() {
                               />
                             </div>
                             <div className="text-center">
-                              <div className="text-sm font-medium text-white/90">
+                              <div className="text-sm font-medium text-foreground">
                                 {template.label}
                               </div>
-                              <div className="text-[10px] text-white/40 mt-0.5 capitalize">
+                              <div className="text-[10px] text-muted-foreground mt-0.5 capitalize">
                                 {template.category}
                               </div>
                             </div>
@@ -350,7 +350,7 @@ export default function WorkspacesPage() {
                       type="button"
                       variant="ghost"
                       onClick={() => setStep(0)}
-                      className="text-white/60 hover:text-white hover:bg-white/5 px-2"
+                      className="text-muted-foreground hover:text-foreground px-2"
                     >
                       <ArrowLeft className="mr-2 h-4 w-4" />
                       Back
@@ -363,7 +363,7 @@ export default function WorkspacesPage() {
                       type="button"
                       variant="ghost"
                       onClick={() => setCreateDialogOpen(false)}
-                      className="text-white/60 hover:text-white hover:bg-white/5 px-4"
+                      className="text-muted-foreground hover:text-foreground px-4"
                     >
                       Cancel
                     </Button>
@@ -372,7 +372,7 @@ export default function WorkspacesPage() {
                         type="button"
                         disabled={!newWorkspaceName.trim()}
                         onClick={() => setStep(1)}
-                        className="bg-white text-black hover:bg-white/90 px-6 font-semibold"
+                        className="bg-primary text-primary-foreground hover:bg-primary/90 px-6 font-semibold"
                       >
                         Next
                         <ArrowRight className="ml-2 h-4 w-4" />
@@ -382,7 +382,7 @@ export default function WorkspacesPage() {
                         type="button"
                         disabled={creating}
                         onClick={createWorkspace}
-                        className="bg-white text-black hover:bg-white/90 px-6 font-semibold shadow-[0_0_20px_rgba(255,255,255,0.3)]"
+                        className="bg-primary text-primary-foreground hover:bg-primary/90 px-6 font-semibold shadow-lg"
                       >
                         {creating ? "Creating..." : "Create Workspace"}
                       </Button>
@@ -399,10 +399,10 @@ export default function WorkspacesPage() {
       <main className="flex flex-1 items-start justify-center px-4 pb-10 pt-10 sm:px-8 lg:px-20">
         <div className="w-full max-w-5xl">
           <div className="mb-6">
-            <h1 className="text-lg font-semibold text-white">
+            <h1 className="text-lg font-semibold text-foreground">
               Your Workspaces
             </h1>
-            <p className="mt-1 text-xs text-white/45">
+            <p className="mt-1 text-xs text-muted-foreground">
               Manage your workspaces and continue where you left off.
             </p>
             {error ? (
@@ -415,7 +415,7 @@ export default function WorkspacesPage() {
           ) : (
             <div className="grid grid-cols-2 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
               {workspaces.length === 0 ? (
-                <div className="col-span-full text-white/70 text-sm">
+                <div className="col-span-full text-muted-foreground text-sm">
                   No workspaces yet. Create one to get started.
                 </div>
               ) : (
@@ -425,9 +425,9 @@ export default function WorkspacesPage() {
                     <div key={workspace.id} className="flex flex-col gap-2">
                       <Link
                         href={`/workspaces/${workspace.id}`}
-                        className="group block w-full aspect-square rounded-3xl bg-[#101018] p-px text-left transition-transform duration-200 hover:-translate-y-1"
+                        className="group block w-full aspect-square rounded-3xl bg-card border border-border p-px text-left transition-transform duration-200 hover:-translate-y-1"
                       >
-                        <div className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-[1.3rem] bg-[#101018]">
+                        <div className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-[1.3rem] bg-card">
                           {thumbnail ? (
                             <img
                               src={thumbnail}
@@ -435,9 +435,9 @@ export default function WorkspacesPage() {
                               className="absolute inset-0 h-full w-full object-cover"
                             />
                           ) : null}
-                          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,rgba(255,255,255,0.7),transparent_55%)] opacity-80" />
+                          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,rgba(255,255,255,0.2),transparent_55%)] opacity-80" />
                           <div className="relative flex items-center justify-center">
-                            <div className="flex size-11 items-center justify-center rounded-full bg-white shadow-[0_0_30px_rgba(255,255,255,0.6)] transition-transform duration-300 group-hover:scale-110">
+                            <div className="flex size-11 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform duration-300 group-hover:scale-110">
                               {(() => {
                                 const template = getTemplateByType(
                                   workspace.app_type
@@ -458,9 +458,11 @@ export default function WorkspacesPage() {
                         </div>
                       </Link>
 
-                      <div className="px-1 text-[11px] text-white/90">
-                        <div className="font-medium">{workspace.name}</div>
-                        <div className="mt-0.5 text-[10px] text-white/65">
+                      <div className="px-1 text-[11px] text-muted-foreground">
+                        <div className="font-medium text-foreground">
+                          {workspace.name}
+                        </div>
+                        <div className="mt-0.5 text-[10px] text-muted-foreground/60">
                           Updated{" "}
                           {new Date(workspace.updatedAt).toLocaleString()}
                         </div>
