@@ -14,6 +14,7 @@ import {
   ArrowDownLeft,
   MessageCircle,
 } from "lucide-react";
+import { Logo } from "./logo";
 
 const data = () => ({
   navigation: {
@@ -75,10 +76,8 @@ export default function FooterSection() {
           {/* Company Info */}
           <div className="space-y-6 lg:col-span-2">
             <Link href="/" className="inline-flex items-center gap-3">
-              <div className="size-10 rounded-xl bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center">
-                <span className="text-2xl font-bold text-white">V</span>
-              </div>
-              <span className="text-xl font-semibold">Vibe</span>
+              <Logo />
+     
             </Link>
             <p className="text-muted-foreground max-w-md">
               The ultimate AI-powered coding platform. Build, preview, and

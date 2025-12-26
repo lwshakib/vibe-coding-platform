@@ -91,7 +91,10 @@ export default function SimplePricing() {
   if (!mounted) return null;
 
   return (
-    <div className="not-prose relative flex w-full flex-col gap-16 overflow-hidden px-4 py-24 text-center sm:px-8">
+    <div
+      id="pricing"
+      className="not-prose relative flex w-full flex-col gap-16 overflow-hidden px-4 py-24 text-center sm:px-8"
+    >
       <div className="absolute inset-0 -z-10 overflow-hidden">
         <div className="bg-primary/10 absolute -top-[10%] left-[50%] h-[40%] w-[60%] -translate-x-1/2 rounded-full blur-3xl" />
         <div className="bg-primary/5 absolute -right-[10%] -bottom-[10%] h-[40%] w-[40%] rounded-full blur-3xl" />

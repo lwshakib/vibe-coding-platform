@@ -6,6 +6,7 @@ import { CheckCircle, Package, Rocket, Zap, AlertCircle } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useWebContainerContext } from "@/context/WebContainerContext";
 import { useWorkspaceStore } from "@/context";
+import { useTheme } from "next-themes";
 
 type ResponsiveMode = "desktop" | "tablet" | "mobile";
 
@@ -24,6 +25,7 @@ export default function WebPreview({
 }: WebPreviewProps) {
   const { currentWorkspace } = useWorkspaceStore();
   const { state, url: webPreviewUrl, error } = useWebContainerContext();
+  const { theme, resolvedTheme } = useTheme();
 
   const getStateIcon = (state: string) => {
     switch (state) {
@@ -106,18 +108,18 @@ export default function WebPreview({
   const getIframeStyles = () => {
     switch (responsiveMode) {
       case "desktop":
-        return "w-full h-full border-none";
+        return "w-full h-full border-none bg-background";
       case "tablet":
-        return "w-full max-w-[820px] h-full mx-auto border border-border rounded-lg shadow-2xl bg-white transition-all duration-300";
+        return "w-full max-w-[820px] h-full mx-auto border border-border rounded-lg shadow-2xl bg-background transition-all duration-300";
       case "mobile":
-        return "w-full max-w-[320px] h-full mx-auto border border-border rounded-lg shadow-2xl bg-white transition-all duration-300";
+        return "w-full max-w-[320px] h-full mx-auto border border-border rounded-lg shadow-2xl bg-background transition-all duration-300";
     }
   };
 
   const getContainerStyles = () => {
     switch (responsiveMode) {
       case "desktop":
-        return "flex-1 bg-white overflow-hidden";
+        return "flex-1 bg-background overflow-hidden";
       case "tablet":
       case "mobile":
         return "flex-1 bg-muted/30 flex items-center justify-center p-4 md:p-8 overflow-auto transition-colors duration-300";
@@ -127,7 +129,13 @@ export default function WebPreview({
   const getFullUrl = (path: string) => {
     if (!webPreviewUrl) return "about:blank";
     const cleanPath = path.startsWith("/") ? path : `/${path}`;
-    return `${webPreviewUrl}${cleanPath}`;
+    const baseUrl = webPreviewUrl.endsWith("/")
+      ? webPreviewUrl.slice(0, -1)
+      : webPreviewUrl;
+
+    // Append theme and timestamp to force refresh and sync appearance
+    const currentTheme = resolvedTheme || theme || "dark";
+    return `${baseUrl}${cleanPath}?theme=${currentTheme}&t=${reloadKey}`;
   };
 
   return (
