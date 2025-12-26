@@ -14,8 +14,8 @@ datasource db {
 }
 
 enum AppType {
-  REACT_TS
-  NEXT_TS
+  VITE_APP  
+  NEXT_APP
 }
 
 enum MessageRole {
@@ -109,7 +109,7 @@ model Message {
   workspaceId String
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   role      MessageRole
-  content   String
+  parts     Json[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

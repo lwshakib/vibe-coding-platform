@@ -1,5 +1,23 @@
 import { create } from "zustand";
 import { AppType } from "@/generated/prisma/enums";
+import { debounce } from "lodash";
+
+// Helper for API calls
+const saveToDb = async (id: string, files: any) => {
+  try {
+    await fetch(`/api/workspaces/${id}/files`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ files }),
+    });
+  } catch (error) {
+    console.error("Failed to update files:", error);
+  }
+};
+
+const debouncedSave = debounce(saveToDb, 2000);
 
 export type Workspace = {
   id: string;
@@ -37,7 +55,7 @@ interface WorkspaceStore {
   setOpenFiles: (files: string[]) => void;
   addOpenFile: (path: string) => void;
   closeFile: (path: string) => void;
-  updateFiles: (files: any) => Promise<void>;
+  updateFiles: (files: any, immediate?: boolean) => Promise<void>;
 }
 
 export const useWorkspaceStore = create<WorkspaceStore>((set) => ({
@@ -101,47 +119,23 @@ export const useWorkspaceStore = create<WorkspaceStore>((set) => ({
         activeFile: newActiveFile,
       };
     }),
-  updateFiles: async (files) => {
-    const previousFiles = useWorkspaceStore.getState().currentWorkspace?.files;
+  updateFiles: async (files, immediate = false) => {
+    const currentWorkspace = useWorkspaceStore.getState().currentWorkspace;
+    if (!currentWorkspace) return;
 
-    // Optimistic update
+    // 1. Optimistic update (Immediate local state change)
     set((state) => ({
       currentWorkspace: state.currentWorkspace
         ? { ...state.currentWorkspace, files }
         : null,
     }));
 
-    try {
-      const currentWorkspace = useWorkspaceStore.getState().currentWorkspace;
-      if (!currentWorkspace) return;
-
-      const response = await fetch(
-        `/api/workspaces/${currentWorkspace.id}/files`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ files }),
-        }
-      );
-
-      if (!response.ok) {
-        // Rollback on failure
-        set((state) => ({
-          currentWorkspace: state.currentWorkspace
-            ? { ...state.currentWorkspace, files: previousFiles }
-            : null,
-        }));
-      }
-    } catch (error) {
-      console.error("Failed to update files:", error);
-      // Rollback on error
-      set((state) => ({
-        currentWorkspace: state.currentWorkspace
-          ? { ...state.currentWorkspace, files: previousFiles }
-          : null,
-      }));
+    // 2. Save to DB (Immediate or Debounced)
+    if (immediate) {
+      debouncedSave.cancel(); // Cancel any pending debounced calls
+      await saveToDb(currentWorkspace.id, files);
+    } else {
+      debouncedSave(currentWorkspace.id, files);
     }
   },
   sendMessage: async (content) => {

@@ -11,6 +11,7 @@ import { useWorkspaceStore } from "@/context";
 import { useTheme } from "next-themes";
 import { tags as t } from "@lezer/highlight";
 import { createTheme } from "@uiw/codemirror-themes";
+import { inlineSuggestion } from "./inlineSuggestion";
 
 const lightTheme = createTheme({
   theme: "light",
@@ -146,6 +147,46 @@ export default function CodeView() {
     [currentWorkspace, activeFile, updateFiles]
   );
 
+  const aiCompletionExtension = useMemo(() => {
+    if (!activeFile) return [];
+
+    return inlineSuggestion(async (state) => {
+      const pos = state.selection.main.head;
+      const line = state.doc.lineAt(pos);
+      const after = line.text.slice(pos - line.from);
+      const before = line.text.slice(0, pos - line.from);
+
+      // Only suggest if there's some context on the current line (at least 3 chars)
+      // or if we have significant cross-line prefix context.
+      if (before.trim().length < 3 && state.doc.length < 50) return null;
+
+      // Only suggest at end of line or before whitespace
+      if (after.trim().length > 0) return null;
+
+      const prefix = state.doc.sliceString(0, pos);
+      const suffix = state.doc.sliceString(pos);
+
+      try {
+        const response = await fetch("/api/completion", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            prefix,
+            suffix,
+            language: activeFile.split(".").pop() || "javascript",
+            fileName: activeFile,
+          }),
+        });
+
+        const data = await response.json();
+        return data.completion || null;
+      } catch (e) {
+        console.error("AI Completion error:", e);
+        return null;
+      }
+    });
+  }, [activeFile]);
+
   if (!activeFile && openFiles.length === 0) {
     return (
       <div className="h-full w-full bg-background flex items-center justify-center text-muted-foreground select-none">
@@ -209,7 +250,7 @@ export default function CodeView() {
             value={fileContent || ""}
             height="100%"
             theme={currentTheme}
-            extensions={[getLanguage(activeFile)]}
+            extensions={[getLanguage(activeFile), aiCompletionExtension]}
             onChange={onChange}
             basicSetup={{
               lineNumbers: true,
@@ -223,7 +264,7 @@ export default function CodeView() {
               syntaxHighlighting: true,
               bracketMatching: true,
               closeBrackets: true,
-              autocompletion: true,
+              autocompletion: false,
               rectangularSelection: true,
               crosshairCursor: true,
               highlightActiveLine: true,

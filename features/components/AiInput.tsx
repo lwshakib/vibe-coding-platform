@@ -1,16 +1,36 @@
 "use client";
 
-import React, { useState } from "react";
-import { Paperclip, Sparkles, StopCircle } from "lucide-react";
+import React, { useState, useRef } from "react";
+import { Paperclip, Sparkles, SendHorizontal } from "lucide-react";
+import { useChat } from "@ai-sdk/react";
+import { useWorkspaceStore } from "@/context";
 
-const AiInput: React.FC = () => {
+interface AiInputProps {
+  onSend: (text: string, files: File[]) => void;
+}
+
+const AiInput: React.FC<AiInputProps> = ({ onSend }) => {
   const [input, setInput] = useState("");
-  const streamingStatus = "idle"; // Mock
+  const [files, setFiles] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { currentWorkspace } = useWorkspaceStore();
 
-  const handleSubmit = (e?: React.FormEvent) => {
+  const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
-    if (input.trim()) {
+    if (input.trim() || files.length > 0) {
+      onSend(input, files);
       setInput("");
+      setFiles([]);
+    }
+  };
+
+  const handleFileClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setFiles(Array.from(e.target.files));
     }
   };
 
@@ -48,9 +68,40 @@ const AiInput: React.FC = () => {
             }}
           />
 
-          <div className="mt-auto flex gap-4">
+          {files.length > 0 && (
+            <div className="mb-4 flex flex-wrap gap-2">
+              {files.map((file, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-2 bg-secondary px-2 py-1 rounded text-xs text-foreground border border-border"
+                >
+                  <Paperclip size={12} />
+                  <span className="truncate max-w-25">{file.name}</span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFiles(files.filter((_, index) => index !== i))
+                    }
+                    className="text-muted-foreground hover:text-destructive"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="mt-auto flex gap-4 items-center">
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              className="hidden"
+              multiple
+            />
             <button
               type="button"
+              onClick={handleFileClick}
               className="text-muted-foreground hover:text-foreground transition-colors"
               title="Attach Files"
             >
@@ -64,14 +115,14 @@ const AiInput: React.FC = () => {
               <Sparkles size={20} />
             </button>
 
-            {streamingStatus === "idle" && (
-              <button
-                type="button"
-                className="ml-auto text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <StopCircle size={20} />
-              </button>
-            )}
+            <button
+              type="submit"
+              disabled={!input.trim() && files.length === 0}
+              className="ml-auto text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Send Message"
+            >
+              <SendHorizontal size={20} />
+            </button>
           </div>
         </form>
       </div>

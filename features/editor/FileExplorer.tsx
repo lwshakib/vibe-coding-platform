@@ -129,6 +129,25 @@ const FileTreeItem = ({
   onFileClick: (path: string) => void;
 }) => {
   const [isOpen, setIsOpen] = useState(node.isOpen || false);
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    if (renamingPath === node.id && inputRef.current) {
+      const timer = setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+          // Select filename without extension if possible, or just all
+          const lastDot = node.name.lastIndexOf(".");
+          if (lastDot > 0 && node.type === "file") {
+            inputRef.current.setSelectionRange(0, lastDot);
+          } else {
+            inputRef.current.select();
+          }
+        }
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [renamingPath, node.id, node.name, node.type]);
 
   const toggleOpen = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -163,9 +182,9 @@ const FileTreeItem = ({
             {node.type === "file" && getFileIcon(node.name)}
 
             {renamingPath === node.id ? (
-              <div className="flex-1 bg-accent ring-1 ring-primary rounded-sm px-1 ml-1">
+              <div className="flex-1 bg-background border-[0.5px] border-primary px-1 ml-1 rounded-none">
                 <input
-                  autoFocus
+                  ref={inputRef}
                   className="w-full bg-transparent border-none outline-none text-foreground text-sm p-0 focus:ring-0"
                   value={newItemName}
                   onChange={(e) => setNewItemName(e.target.value)}
@@ -173,7 +192,7 @@ const FileTreeItem = ({
                     if (e.key === "Enter") onRenameSubmit();
                     if (e.key === "Escape") setRenamingPath(null);
                   }}
-                  onBlur={onRenameSubmit}
+                  onBlur={() => setRenamingPath(null)}
                 />
               </div>
             ) : (
@@ -326,6 +345,26 @@ export default function FileExplorer() {
   const [parentPath, setParentPath] = useState<string | null>(null);
   const [renamingPath, setRenamingPath] = useState<string | null>(null);
   const [clipboard, setClipboard] = useState<ClipboardItem | null>(null);
+  const createInputRef = React.useRef<HTMLInputElement>(null);
+  const searchInputRef = React.useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    if (isCreating && createInputRef.current) {
+      const timer = setTimeout(() => {
+        createInputRef.current?.focus();
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [isCreating]);
+
+  React.useEffect(() => {
+    if (activeTab === "search" && searchInputRef.current) {
+      const timer = setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [activeTab]);
 
   const files = useMemo(() => {
     if (!currentWorkspace?.files) return [];
@@ -342,7 +381,8 @@ export default function FileExplorer() {
   );
 
   const handleCreateSubmit = async () => {
-    if (!newItemName || !currentWorkspace) {
+    const trimmedName = newItemName.trim();
+    if (!trimmedName || !currentWorkspace) {
       setIsCreating(null);
       setParentPath(null);
       setNewItemName("");
@@ -350,7 +390,7 @@ export default function FileExplorer() {
     }
 
     const newFiles = { ...currentWorkspace.files };
-    const fullPath = parentPath ? `${parentPath}/${newItemName}` : newItemName;
+    const fullPath = parentPath ? `${parentPath}/${trimmedName}` : trimmedName;
 
     if (isCreating === "file") {
       newFiles[fullPath] = { content: "" };
@@ -358,7 +398,7 @@ export default function FileExplorer() {
       newFiles[`${fullPath}/.keep`] = { content: "" };
     }
 
-    await updateFiles(newFiles);
+    await updateFiles(newFiles, true);
     if (isCreating === "file") {
       addOpenFile(fullPath);
     }
@@ -368,7 +408,8 @@ export default function FileExplorer() {
   };
 
   const handleRenameSubmit = async () => {
-    if (!newItemName || !currentWorkspace || !renamingPath) {
+    const trimmedName = newItemName.trim();
+    if (!trimmedName || !currentWorkspace || !renamingPath) {
       setRenamingPath(null);
       setNewItemName("");
       return;
@@ -376,8 +417,22 @@ export default function FileExplorer() {
 
     const newFiles = { ...currentWorkspace.files };
     const pathParts = renamingPath.split("/");
-    pathParts[pathParts.length - 1] = newItemName;
+    const oldName = pathParts[pathParts.length - 1];
+    if (trimmedName === oldName) {
+      setRenamingPath(null);
+      setNewItemName("");
+      return;
+    }
+    pathParts[pathParts.length - 1] = trimmedName;
     const newPath = pathParts.join("/");
+
+    // Prevent overwriting existing files
+    if (newFiles[newPath]) {
+      alert("A file or folder with this name already exists.");
+      setRenamingPath(null);
+      setNewItemName("");
+      return;
+    }
 
     Object.keys(newFiles).forEach((path) => {
       if (path === renamingPath) {
@@ -406,7 +461,7 @@ export default function FileExplorer() {
     });
     setOpenFiles(updatedOpenFiles);
 
-    await updateFiles(newFiles);
+    await updateFiles(newFiles, true);
     setRenamingPath(null);
     setNewItemName("");
   };
@@ -442,7 +497,7 @@ export default function FileExplorer() {
       setClipboard(null);
     }
 
-    await updateFiles(newFiles);
+    await updateFiles(newFiles, true);
   };
 
   const handleDelete = async (path: string) => {
@@ -465,7 +520,7 @@ export default function FileExplorer() {
     );
     setOpenFiles(updatedOpenFiles);
 
-    await updateFiles(newFiles);
+    await updateFiles(newFiles, true);
   };
 
   const handleCopy = (path: string) => {
@@ -584,9 +639,9 @@ export default function FileExplorer() {
                     <span className="text-muted-foreground shrink-0 flex items-center justify-center w-4">
                       <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/80" />
                     </span>
-                    <div className="flex-1 bg-accent ring-1 ring-primary rounded-sm px-1 ml-1">
+                    <div className="flex-1 bg-background border-[0.5px] border-primary px-1 ml-1 rounded-none">
                       <input
-                        autoFocus
+                        ref={createInputRef}
                         className="w-full bg-transparent border-none outline-none text-foreground text-sm p-0 focus:ring-0"
                         value={newItemName}
                         onChange={(e) => setNewItemName(e.target.value)}
@@ -597,7 +652,10 @@ export default function FileExplorer() {
                             setParentPath(null);
                           }
                         }}
-                        onBlur={handleCreateSubmit}
+                        onBlur={() => {
+                          setIsCreating(null);
+                          setParentPath(null);
+                        }}
                         placeholder="folder name"
                       />
                     </div>
@@ -652,9 +710,9 @@ export default function FileExplorer() {
                             <FileIcon className="w-3.5 h-3.5 text-muted-foreground/60" />
                           )}
                         </span>
-                        <div className="flex-1 bg-accent ring-1 ring-primary rounded-sm px-1 ml-1">
+                        <div className="flex-1 bg-background border-[0.5px] border-primary px-1 ml-1 rounded-none">
                           <input
-                            autoFocus
+                            ref={createInputRef}
                             className="w-full bg-transparent border-none outline-none text-foreground text-sm p-0 focus:ring-0"
                             value={newItemName}
                             onChange={(e) => setNewItemName(e.target.value)}
@@ -665,7 +723,10 @@ export default function FileExplorer() {
                                 setParentPath(null);
                               }
                             }}
-                            onBlur={handleCreateSubmit}
+                            onBlur={() => {
+                              setIsCreating(null);
+                              setParentPath(null);
+                            }}
                             placeholder={
                               isCreating === "file"
                                 ? "file name"
@@ -686,9 +747,9 @@ export default function FileExplorer() {
                     <span className="text-muted-foreground shrink-0 flex items-center justify-center w-4">
                       <FileIcon className="w-3.5 h-3.5 text-muted-foreground/60" />
                     </span>
-                    <div className="flex-1 bg-accent ring-1 ring-primary rounded-sm px-1 ml-1">
+                    <div className="flex-1 bg-background border-[0.5px] border-primary px-1 ml-1 rounded-none">
                       <input
-                        autoFocus
+                        ref={createInputRef}
                         className="w-full bg-transparent border-none outline-none text-foreground text-sm p-0 focus:ring-0"
                         value={newItemName}
                         onChange={(e) => setNewItemName(e.target.value)}
@@ -699,7 +760,10 @@ export default function FileExplorer() {
                             setParentPath(null);
                           }
                         }}
-                        onBlur={handleCreateSubmit}
+                        onBlur={() => {
+                          setIsCreating(null);
+                          setParentPath(null);
+                        }}
                         placeholder="file name"
                       />
                     </div>
@@ -799,11 +863,11 @@ export default function FileExplorer() {
               <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
                 <input
+                  ref={searchInputRef}
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search files..."
-                  autoFocus
                   className="w-full bg-accent text-foreground text-xs pl-8 pr-2 py-1.5 rounded border border-transparent focus:outline-none focus:ring-1 focus:ring-primary/50 placeholder:text-muted-foreground/50"
                 />
               </div>

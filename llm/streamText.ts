@@ -1,27 +1,40 @@
-import { GoogleGenAI } from "@google/genai";
-import { getModelName } from "./model";
-import { getSingleApiKey } from "./model";
-import { CODE_GENERATION_PROMPT } from "./prompts";
+import { GeminiModel } from "./model";
+import { getFineTunedPrompt } from "./prompts";
+import {
+  streamText as _streamText,
+  convertToModelMessages,
+  ModelMessage,
+  UIMessage,
+} from "ai";
+import { google } from "@ai-sdk/google";
+import { AppType } from "@/generated/prisma/enums";
 
-export const streamText = async (messages: any) => {
-  const ai = new GoogleGenAI({
-    apiKey: getSingleApiKey(),
-  });
-  const chat = await ai.chats.create({
-    model: getModelName(),
-    history: messages.slice(0, -1),
-    config: {
-      maxOutputTokens: 65535,
-      temperature: 0.7,
-      topP: 0.9,
-      topK: 40,
-      frequencyPenalty: 0,
-      presencePenalty: 0,
-      systemInstruction: CODE_GENERATION_PROMPT,
+interface ToolResult<Name extends string, Args, Result> {
+  toolCallId: string;
+  toolName: Name;
+  args: Args;
+  result: Result;
+}
+
+interface Message {
+  role: "user" | "assistant";
+  content: string;
+  toolInvocations?: ToolResult<string, unknown, unknown>[];
+}
+
+export type Messages = Message[];
+
+export type StreamingOptions = Omit<Parameters<typeof _streamText>[0], "model">;
+
+export async function streamText(messages: Messages, app_type: AppType, files: any) {
+  return _streamText({
+    model: GeminiModel(),
+    system: getFineTunedPrompt(app_type, files),
+    maxOutputTokens: 65535,
+    messages: await convertToModelMessages(messages as unknown as UIMessage[]),
+    tools: {
+      google_search: google.tools.googleSearch({}),
+      url_context: google.tools.urlContext({}),
     },
   });
-  const stream = await chat.sendMessageStream({
-    message: messages[messages.length - 1].content,
-  });
-  return stream;
-};
+}

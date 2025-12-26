@@ -12,8 +12,8 @@ export interface WorkspaceAppTemplate {
 
 export const WORKSPACE_REGISTRY: WorkspaceAppTemplate[] = [
   {
-    type: AppType.REACT_TS,
-    label: "React TS",
+    type: AppType.,
+    label: "Vite - React",
     description: "Vite + React with TypeScript and Tailwind CSS.",
     logo: "/logos/react.svg",
     folder: "react-ts",
@@ -22,7 +22,7 @@ export const WORKSPACE_REGISTRY: WorkspaceAppTemplate[] = [
   },
   {
     type: AppType.NEXT_TS,
-    label: "Next.js TS",
+    label: "Next.js",
     description: "The React Framework for the Web with App Router.",
     logo: "/logos/nextjs.svg",
     folder: "next-ts",

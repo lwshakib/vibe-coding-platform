@@ -1,5 +1,4 @@
-"use client";
-
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import React from "react";
 
 interface UserMessageProps {
@@ -8,9 +7,21 @@ interface UserMessageProps {
 
 const UserMessage: React.FC<UserMessageProps> = ({ content }) => {
   return (
-    <div className="flex justify-end mb-6">
-      <div className="max-w-[85%] bg-white/5 border border-white/10 rounded-2xl px-4 py-2.5 text-sm text-white/90">
-        {content}
+    <div className="flex justify-end mb-6 group animate-in fade-in slide-in-from-right-4 duration-300">
+      <div className="flex items-start gap-4 max-w-[85%]">
+        <div className="flex flex-col items-end flex-1 min-w-0">
+          <div className="bg-primary/10 text-foreground border border-primary/20 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow duration-200">
+            <p className="text-sm leading-relaxed whitespace-pre-wrap wrap-break-word">
+              {content}
+            </p>
+          </div>
+        </div>
+        <Avatar className="h-10 w-10 shrink-0 border-2 border-primary/20 shadow-sm">
+          <AvatarImage src="/user-avatar.png" alt="User" />
+          <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
+            U
+          </AvatarFallback>
+        </Avatar>
       </div>
     </div>
   );

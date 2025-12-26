@@ -1,13 +1,23 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useWorkspaceStore } from "@/context";
 import AiInput from "./AiInput";
+import UserMessage from "./UserMessage";
+import AssistantMessage from "./AssistantMessage";
+import { useChat } from "@ai-sdk/react";
 
 const LeftSideView: React.FC = () => {
   const { currentWorkspace } = useWorkspaceStore();
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameInput, setNameInput] = useState("");
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const { messages, sendMessage } = useChat({
+    onFinish: (result) => {
+      console.log("Result:", result);
+    },
+  });
 
   const currentName = currentWorkspace?.name || nameInput || "My Project";
 
@@ -19,11 +29,31 @@ const LeftSideView: React.FC = () => {
     setIsEditingName(false);
   };
 
+  // Helper to extract text from UIMessage parts
+  const getMessageText = (m: any) => {
+    if (m.content) return m.content;
+    if (m.parts && Array.isArray(m.parts)) {
+      return m.parts
+        .filter((p: any) => p.type === "text")
+        .map((p: any) => p.text)
+        .join("");
+    }
+    return "";
+  };
+
+  // Auto-scroll to bottom on new messages
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
+
   return (
-    <div className="flex flex-col w-full h-full bg-background overflow-hidden">
+    <div className="flex flex-col w-full h-full bg-background overflow-hidden border-r border-border/40 font-inter">
       {/* Header with Project Name */}
-      <header className="h-14  px-6 flex items-center shrink-0">
-        <div className="flex items-center">
+      <header className="h-14 px-6 flex items-center shrink-0 border-b border-border/10 bg-background/50 backdrop-blur-md z-10 transition-all">
+        <div className="flex items-center gap-3">
+          <div className="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_rgba(158,127,255,0.6)] animate-pulse" />
           {isEditingName ? (
             <input
               value={nameInput}
@@ -49,23 +79,81 @@ const LeftSideView: React.FC = () => {
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto scrollbar-hide">
-        <div className="p-4 min-h-full flex flex-col items-center justify-center">
-          <div className="text-center max-w-md px-4">
-            <h1 className="mb-4 text-4xl md:text-5xl font-bold text-foreground">
-              What do you want to build?
-            </h1>
-            <p className="text-lg text-muted-foreground leading-relaxed">
-              Prompt, run, edit, and deploy full-stack{" "}
-              <span className="text-foreground font-medium">web</span> and{" "}
-              <span className="text-foreground font-medium">mobile</span> apps.
-            </p>
-          </div>
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto scrollbar-hide scroll-smooth"
+      >
+        <div className="p-4 min-h-full flex flex-col">
+          {messages.length === 0 ? (
+            <div className="flex-1 flex flex-col items-center justify-center animate-in fade-in zoom-in-95 duration-1000">
+              <div className="text-center max-w-md px-4">
+                <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-8 shadow-inner shadow-primary/20">
+                  <div className="w-8 h-8 rounded-lg bg-linear-to-br from-primary to-purple-400 rotate-12 shadow-lg" />
+                </div>
+                <h1 className="mb-4 text-4xl md:text-5xl font-bold text-foreground tracking-tight">
+                  What do you <span className="text-primary italic">want</span>{" "}
+                  to build?
+                </h1>
+                <p className="text-base text-muted-foreground leading-relaxed">
+                  Prompt, run, edit, and deploy full-stack{" "}
+                  <span className="text-foreground font-medium">web</span> and{" "}
+                  <span className="text-foreground font-medium">mobile</span>{" "}
+                  apps.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col py-4 w-full max-w-2xl mx-auto">
+              {messages.map((m, idx) =>
+                m.role === "user" ? (
+                  <UserMessage key={m.id || idx} content={getMessageText(m)} />
+                ) : (
+                  <AssistantMessage
+                    key={m.id || idx}
+                    content={getMessageText(m)}
+                    isStreaming={idx === messages.length - 1}
+                  />
+                )
+              )}
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="shrink-0 px-4">
-        <AiInput />
+      <div className="shrink-0 p-4 bg-linear-to-t from-background via-background to-transparent">
+        <AiInput
+          onSend={async (text, files) => {
+            // Helper to convert file to base64
+            const toBase64 = (file: File): Promise<string> =>
+              new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result as string);
+                reader.onerror = (error) => reject(error);
+              });
+
+            const processedFiles = await Promise.all(
+              files.map(async (file) => ({
+                type: "file" as const,
+                mediaType: file.type,
+                filename: file.name,
+                data: (await toBase64(file)).split(",")[1],
+              }))
+            );
+
+            sendMessage(
+              {
+                text: text.trim(),
+                files: processedFiles as any,
+              },
+              {
+                body: {
+                  files: currentWorkspace?.files,
+                },
+              }
+            );
+          }}
+        />
       </div>
     </div>
   );
