@@ -1,10 +1,10 @@
-'use client';
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import Image from 'next/image';
-import { Button } from '@/components/ui/button';
-import { useTheme } from 'next-themes';
-import { Input } from '@/components/ui/input';
+"use client";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { Button } from "@/components/ui/button";
+import { useTheme } from "next-themes";
+import { Input } from "@/components/ui/input";
 import {
   Github,
   Linkedin,
@@ -13,44 +13,44 @@ import {
   Sun,
   ArrowDownLeft,
   MessageCircle,
-} from 'lucide-react';
+} from "lucide-react";
 
 const data = () => ({
   navigation: {
     product: [
-      { name: 'Features', href: '#features' },
-      { name: 'Pricing', href: '#pricing' },
-      { name: 'Integrations', href: '#integrations' },
-      { name: 'Roadmap', href: '#roadmap' },
+      { name: "Features", href: "#features" },
+      { name: "Workspaces", href: "/workspaces" },
+      { name: "Templates", href: "#" },
+      { name: "Pricing", href: "#pricing" },
     ],
-    company: [
-      { name: 'About', href: '/about' },
-      { name: 'Blog', href: '/blog' },
-      { name: 'Careers', href: '/careers' },
-      { name: 'Contact', href: '/contact' },
+    developers: [
+      { name: "Documentation", href: "#" },
+      { name: "API Reference", href: "#" },
+      { name: "Guides & Tutorials", href: "#" },
+      { name: "Examples", href: "#" },
     ],
     resources: [
-      { name: 'Documentation', href: '/docs' },
-      { name: 'API Reference', href: '/api' },
-      { name: 'Community', href: '/community' },
-      { name: 'Status', href: '/status' },
+      { name: "Community", href: "#" },
+      { name: "Blog", href: "#" },
+      { name: "Changelog", href: "#" },
+      { name: "Support", href: "#" },
     ],
     legal: [
-      { name: 'Privacy', href: '/privacy' },
-      { name: 'Terms', href: '/terms' },
-      { name: 'Cookie Policy', href: '/cookies' },
+      { name: "Privacy Policy", href: "/privacy" },
+      { name: "Terms of Service", href: "/terms" },
+      { name: "Cookie Policy", href: "/cookies" },
     ],
   },
   socialLinks: [
-    { icon: Twitter, label: 'Twitter', href: '#' },
-    { icon: Github, label: 'GitHub', href: '#' },
-    { icon: MessageCircle, label: 'Discord', href: '#' },
-    { icon: Linkedin, label: 'LinkedIn', href: '#' },
+    { icon: Twitter, label: "Twitter", href: "https://twitter.com" },
+    { icon: Github, label: "GitHub", href: "https://github.com" },
+    { icon: MessageCircle, label: "Discord", href: "#" },
+    { icon: Linkedin, label: "LinkedIn", href: "#" },
   ],
   bottomLinks: [
-    { href: '/privacy', label: 'Privacy Policy' },
-    { href: '/terms', label: 'Terms of Service' },
-    { href: '/cookies', label: 'Cookie Policy' },
+    { href: "/privacy", label: "Privacy Policy" },
+    { href: "/terms", label: "Terms of Service" },
+    { href: "/cookies", label: "Cookie Policy" },
   ],
 });
 
@@ -75,18 +75,15 @@ export default function FooterSection() {
           {/* Company Info */}
           <div className="space-y-6 lg:col-span-2">
             <Link href="/" className="inline-flex items-center gap-3">
-              <Image
-                src="https://i.postimg.cc/j5dW4vFd/Mvpblocks.webp"
-                alt="Logo"
-                width={200}
-                height={200}
-                className="size-10"
-              />
-              <span className="text-xl font-semibold">Mvpblocks</span>
+              <div className="size-10 rounded-xl bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center">
+                <span className="text-2xl font-bold text-white">V</span>
+              </div>
+              <span className="text-xl font-semibold">Vibe</span>
             </Link>
             <p className="text-muted-foreground max-w-md">
-              Building innovative solutions for modern businesses. Fast,
-              reliable, and scalable.
+              The ultimate AI-powered coding platform. Build, preview, and
+              deploy full-stack applications directly in your browser with
+              WebContainer technology.
             </p>
             <div className="flex items-center gap-2">
               <div className="flex gap-2">
@@ -107,10 +104,10 @@ export default function FooterSection() {
               <Button
                 variant="outline"
                 size="icon"
-                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
                 className="hover:bg-primary dark:hover:bg-primary !border-primary/30 !hover:border-primary cursor-pointer shadow-none transition-all duration-1000 hover:scale-110 hover:-rotate-12 hover:text-white hover:shadow-md"
               >
-                {theme === 'dark' ? (
+                {theme === "dark" ? (
                   <Sun className="h-4 w-4" />
                 ) : (
                   <Moon className="h-4 w-4" />
@@ -123,7 +120,7 @@ export default function FooterSection() {
               className="w-full max-w-md space-y-3"
             >
               <label htmlFor="email" className="block text-sm font-medium">
-                Subscribe to our newsletter
+                Stay updated with Vibe
               </label>
               <div className="relative w-full">
                 <Input
@@ -141,17 +138,18 @@ export default function FooterSection() {
                 </Button>
               </div>
               <p className="text-muted-foreground text-xs">
-                Get the latest updates, tutorials, and exclusive offers.
+                Get tips, tutorials, and platform updates delivered to your
+                inbox.
               </p>
             </form>
             <h1 className="from-muted-foreground/15 bg-gradient-to-b bg-clip-text text-5xl font-extrabold text-transparent lg:text-7xl">
-              Developer
+              Code
             </h1>
           </div>
 
           {/* Navigation Links */}
           <div className="grid w-full grid-cols-2 items-start justify-between gap-8 px-5 lg:col-span-3">
-            {(['product', 'company', 'resources', 'legal'] as const).map(
+            {(["product", "developers", "resources", "legal"] as const).map(
               (section) => (
                 <div key={section} className="w-full">
                   <h3 className="border-primary mb-4 -ml-5 border-l-2 pl-5 text-sm font-semibold tracking-wider uppercase">
@@ -171,7 +169,7 @@ export default function FooterSection() {
                     ))}
                   </ul>
                 </div>
-              ),
+              )
             )}
           </div>
         </div>
@@ -180,7 +178,7 @@ export default function FooterSection() {
         <div className="animate-rotate-3d via-primary h-px w-full bg-gradient-to-r from-transparent to-transparent" />
         <div className="text-muted-foreground container m-auto flex flex-col items-center justify-between gap-4 p-4 text-xs md:flex-row md:px-0 md:text-sm">
           <p className="">
-            &copy; {currentYear} Mvpblocks | All rights reserved
+            &copy; {currentYear} Vibe Coding Platform. All rights reserved.
           </p>
           <div className="flex items-center gap-4">
             {data().bottomLinks.map(({ href, label }) => (
