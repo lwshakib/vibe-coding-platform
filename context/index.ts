@@ -27,6 +27,7 @@ export type Workspace = {
   files: any;
   updatedAt: string;
   createdAt: string;
+  messages?: any[];
 };
 
 export type TabType = "code-editor" | "web-preview";

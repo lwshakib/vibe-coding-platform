@@ -19,9 +19,7 @@ const LeftSideView: React.FC = () => {
     messages,
     sendMessage,
     setMessages: setChatMessages,
-  } = useChat({
-    initialMessages: (currentWorkspace?.messages as any) || [],
-  });
+  } = useChat({});
 
   // Sync messages when workspace changes (e.g. navigating between workspaces)
   useEffect(() => {
