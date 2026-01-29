@@ -40,7 +40,7 @@ type ResponsiveMode = "desktop" | "tablet" | "mobile";
 
 const RightSideView: React.FC = () => {
   const { activeTab, setActiveTab } = useWorkspaceStore();
-  const { url: previewUrl, port } = useWebContainerContext();
+  const { url: previewUrl, port, setPort } = useWebContainerContext();
 
   const [isGithubDialogOpen, setIsGithubDialogOpen] = useState(false);
   const [isCreatingRepo, setIsCreatingRepo] = useState(false);
@@ -114,7 +114,7 @@ const RightSideView: React.FC = () => {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
-                  className="flex-1 max-w-xl w-full"
+                  className="flex-1 max-w-3xl w-full"
                 >
                   <CustomSearchBar
                     value={url}
@@ -126,6 +126,9 @@ const RightSideView: React.FC = () => {
                     responsiveIcon={getResponsiveIcon()}
                     placeholder="Search or enter path..."
                     port={port || 3000}
+                    onPortChange={(newPort) => {
+                      setPort(newPort);
+                    }}
                   />
                 </motion.div>
               )}

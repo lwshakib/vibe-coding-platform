@@ -20,6 +20,8 @@ interface WebContainerContextType {
   error: string | null;
   instance: WebContainer | null;
   terminalRef: React.MutableRefObject<Terminal | null>;
+  setPort: (port: number | null) => void;
+  setUrl: (url: string | null) => void;
 }
 
 const WebContainerContext = createContext<WebContainerContextType | undefined>(

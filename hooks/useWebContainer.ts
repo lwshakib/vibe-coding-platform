@@ -274,5 +274,5 @@ export function useWebContainer(
     }
   }, [files, instance, boot, mountAndRun]);
 
-  return { instance, state, url, port, error };
+  return { instance, state, url, setUrl, port, setPort, error };
 }
