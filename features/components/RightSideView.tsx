@@ -39,7 +39,7 @@ import { useWebContainerContext } from "@/context/WebContainerContext";
 type ResponsiveMode = "desktop" | "tablet" | "mobile";
 
 const RightSideView: React.FC = () => {
-  const { activeTab, setActiveTab } = useWorkspaceStore();
+  const { activeTab, setActiveTab, currentWorkspace } = useWorkspaceStore();
   const { url: previewUrl, port, setPort } = useWebContainerContext();
 
   const [isGithubDialogOpen, setIsGithubDialogOpen] = useState(false);
@@ -129,6 +129,7 @@ const RightSideView: React.FC = () => {
                     onPortChange={(newPort) => {
                       setPort(newPort);
                     }}
+                    files={currentWorkspace?.files}
                   />
                 </motion.div>
               )}

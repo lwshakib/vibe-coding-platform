@@ -2,8 +2,8 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ExternalLink, RotateCcw, Lock, Globe, Search } from "lucide-react";
-import React, { useState, useEffect } from "react";
+import { ExternalLink, RotateCcw, Lock, Globe, Search, ChevronRight } from "lucide-react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { cn } from "@/lib/utils";
 import {
   Popover,
@@ -11,6 +11,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
+import { AnimatePresence, motion } from "motion/react";
 
 interface CustomSearchBarProps {
   value: string;
@@ -24,7 +25,68 @@ interface CustomSearchBarProps {
   port?: number;
   onPortChange?: (port: number) => void;
   disabled?: boolean;
+  files?: any;
 }
+
+const extractPathsFromFiles = (files: any): string[] => {
+  if (!files) return ["/"];
+
+  const paths = new Set<string>();
+  paths.add("/");
+
+  const entries = Object.entries(files);
+
+  entries.forEach(([filePath, fileData]: [string, any]) => {
+    // 1. App Router: app/**/page.tsx
+    const appMatch = filePath.match(/(?:^|src\/)app\/(.*)\/page\.[jt]sx?$/);
+    if (appMatch) {
+      const route = "/" + appMatch[1]
+        .split('/')
+        .filter(part => !part.startsWith('(') && !part.endsWith(')'))
+        .join('/');
+      paths.add(route.replace(/\/+$/, "") || "/");
+    } else if (filePath.match(/(?:^|src\/)app\/page\.[jt]sx?$/)) {
+      paths.add("/");
+    }
+
+    // 2. Pages Router: pages/**/index.tsx
+    const pagesMatch = filePath.match(/(?:^|src\/)pages\/(.*)\.[jt]sx?$/);
+    if (pagesMatch) {
+      let route = "/" + pagesMatch[1];
+      if (!route.includes("_app") && !route.includes("_document") && !route.includes("/api/")) {
+        route = route.replace(/\/index$/, "") || "/";
+        paths.add(route);
+      }
+    }
+
+    // 3. Simple content parsing for links
+    if (fileData && typeof fileData.content === 'string') {
+      const content = fileData.content;
+      const hrefRegex = /href=["'](\/[^"'\s>{]+)["']/g;
+      const toRegex = /to=["'](\/[^"'\s>{]+)["']/g;
+
+      let match;
+      while ((match = hrefRegex.exec(content)) !== null) {
+        const p = match[1];
+        if (p && !p.includes('.') && !p.startsWith('//') && p.length > 1) {
+          paths.add(p);
+        }
+      }
+      while ((match = toRegex.exec(content)) !== null) {
+        const p = match[1];
+        if (p && !p.includes('.') && !p.startsWith('//') && p.length > 1) {
+          paths.add(p);
+        }
+      }
+    }
+  });
+
+  return Array.from(paths).sort((a, b) => {
+    if (a === "/") return -1;
+    if (b === "/") return 1;
+    return a.localeCompare(b);
+  });
+};
 
 export const CustomSearchBar: React.FC<CustomSearchBarProps> = ({
   value,
@@ -38,11 +100,14 @@ export const CustomSearchBar: React.FC<CustomSearchBarProps> = ({
   port = 3000,
   onPortChange,
   disabled,
+  files,
 }) => {
   const [isFocused, setIsFocused] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [localValue, setLocalValue] = useState(value);
   const [localPort, setLocalPort] = useState(port.toString());
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!isFocused) {
@@ -54,13 +119,23 @@ export const CustomSearchBar: React.FC<CustomSearchBarProps> = ({
     setLocalPort(port.toString());
   }, [port]);
 
+  const allPaths = useMemo(() => extractPathsFromFiles(files), [files]);
+
+  const filteredSuggestions = useMemo(() => {
+    if (!localValue || localValue === "/") return allPaths;
+    const filter = localValue.toLowerCase();
+    return allPaths.filter(p => p.toLowerCase().includes(filter));
+  }, [allPaths, localValue]);
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       onSubmit(localValue);
       onChange(localValue);
+      setShowSuggestions(false);
       (e.target as HTMLInputElement).blur();
     }
     if (e.key === "Escape") {
+      setShowSuggestions(false);
       (e.target as HTMLInputElement).blur();
     }
   };
@@ -74,8 +149,27 @@ export const CustomSearchBar: React.FC<CustomSearchBarProps> = ({
     setIsPopoverOpen(false);
   };
 
+  const handleSelectPath = (path: string) => {
+    setLocalValue(path);
+    onChange(path);
+    onSubmit(path);
+    setShowSuggestions(false);
+  };
+
+  // Handle click outside for suggestions
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   return (
     <div
+      ref={containerRef}
       className={cn(
         "relative flex items-center w-full max-w-4xl h-11 rounded-lg border bg-background/95 backdrop-blur-sm shadow-sm transition-all duration-200",
         isFocused 
@@ -138,7 +232,7 @@ export const CustomSearchBar: React.FC<CustomSearchBarProps> = ({
       </div>
 
       {/* Center Area: Editable Path */}
-      <div className="flex-1 flex items-center h-full px-4 overflow-hidden">
+      <div className="flex-1 flex items-center h-full px-4 overflow-hidden relative">
         <div className="flex items-center gap-2 w-full max-w-2xl mx-auto">
           <Globe className={cn(
             "h-4 w-4 shrink-0 transition-colors",
@@ -152,11 +246,16 @@ export const CustomSearchBar: React.FC<CustomSearchBarProps> = ({
                 val = "/" + val;
               }
               setLocalValue(val);
+              setShowSuggestions(true);
             }}
             onKeyDown={handleKeyDown}
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => {
+            onFocus={() => {
+              setIsFocused(true);
+              setShowSuggestions(true);
+            }}
+            onBlur={(e) => {
               setIsFocused(false);
+              // Delay blur to allow suggestion clicking if not handled by click-outside
               if (!localValue.trim() || localValue === "/") {
                 setLocalValue("/");
                 onChange("/");
@@ -178,6 +277,55 @@ export const CustomSearchBar: React.FC<CustomSearchBarProps> = ({
           />
         </div>
       </div>
+
+      {/* Suggestions Dropdown */}
+      <AnimatePresence>
+        {showSuggestions && filteredSuggestions.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -10, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.98 }}
+            className="absolute top-full left-0 right-0 mt-3 py-2 bg-background/98 backdrop-blur-xl border border-border/60 rounded-xl shadow-2xl z-[100] overflow-hidden"
+          >
+            <div className="px-3 pb-1 mb-1 border-b border-border/40 flex items-center justify-between">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">
+                Project Paths
+              </span>
+              <span className="text-[10px] text-muted-foreground/40">
+                {filteredSuggestions.length} found
+              </span>
+            </div>
+            <div className="max-h-[300px] overflow-y-auto overflow-x-hidden custom-scrollbar">
+              {filteredSuggestions.map((path) => (
+                <button
+                  key={path}
+                  onClick={() => handleSelectPath(path)}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-left hover:bg-muted/80 transition-all group relative"
+                >
+                  <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-primary/5 text-primary/60 group-hover:bg-primary/10 group-hover:text-primary transition-all">
+                    <Globe className="w-3.5 h-3.5" />
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <span className="font-semibold truncate text-foreground/90 group-hover:text-foreground">
+                      {path}
+                    </span>
+                    {path === "/" && (
+                      <span className="text-[10px] text-muted-foreground/60">
+                        Home Page
+                      </span>
+                    )}
+                  </div>
+                  <ChevronRight className="ml-auto w-3.5 h-3.5 text-muted-foreground/20 group-hover:text-primary/60 transition-colors" />
+                  
+                  {path === value && (
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-6 bg-primary rounded-r-full" />
+                  )}
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Right Area: Action Buttons */}
       <div className="flex items-center gap-1 pr-2 shrink-0 h-full border-l border-border/40 pl-2">
