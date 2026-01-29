@@ -1,48 +1,61 @@
 import { File as FileIcon } from "lucide-react";
 
-export const getFileIcon = (filename: string) => {
+export const getFileIcon = (filename: string, isFolder?: boolean) => {
+  if (isFolder) return null;
+
   const ext = filename.split(".").pop()?.toLowerCase();
+  
+  const iconMap: Record<string, string> = {
+    "ts": "typescript",
+    "tsx": "react",
+    "js": "javascript",
+    "jsx": "react",
+    "json": "json",
+    "md": "markdown",
+    "css": "css",
+    "html": "html",
+    "svg": "svg",
+    "png": "image",
+    "jpg": "image",
+    "jpeg": "image",
+    "gif": "image",
+    "pdf": "pdf",
+    "zip": "zip",
+    "gitignore": "git",
+    "package.json": "npm",
+    "tsconfig.json": "tsconfig",
+    "vite.config.ts": "vite",
+    "next.config.js": "next",
+    "next.config.ts": "next",
+    "tailwind.config.js": "javascript",
+    "postcss.config.js": "javascript",
+    "npm": "npm",
+    "yarn.lock": "yarn",
+    "bun.lock": "zip", 
+    "dockerfile": "docker",
+    "yml": "yml",
+    "yaml": "yml",
+    "prisma": "prisma",
+  };
 
-  if (filename === ".gitignore")
-    return <span className="text-gray-400 text-[10px] font-bold">git</span>;
-
-  switch (ext) {
-    case "ts":
-    case "tsx":
-      return (
-        <div className="flex items-center justify-center w-4 h-4 rounded-[2px] bg-blue-500/10 text-blue-500 font-bold text-[8px] leading-none shrink-0">
-          TS
-        </div>
-      );
-    case "js":
-    case "jsx":
-    case "mjs":
-      return (
-        <div className="flex items-center justify-center w-4 h-4 rounded-[2px] bg-yellow-400/10 text-yellow-400 font-bold text-[8px] leading-none shrink-0">
-          JS
-        </div>
-      );
-    case "json":
-      return (
-        <div className="flex items-center justify-center w-4 h-4 text-yellow-200 font-bold text-[10px] leading-none shrink-0">
-          {"{}"}
-        </div>
-      );
-    case "md":
-      return (
-        <div className="flex items-center justify-center w-4 h-4 text-blue-300 font-bold text-[10px] leading-none shrink-0">
-          i
-        </div>
-      );
-    case "css":
-      return (
-        <div className="flex items-center justify-center w-4 h-4 text-blue-400 font-bold text-[8px] leading-none shrink-0">
-          #
-        </div>
-      );
-    default:
-      return (
-        <FileIcon className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0" />
-      );
+  let iconName = "default";
+  
+  const lowerName = filename.toLowerCase();
+  if (lowerName === "package.json") {
+    iconName = "npm";
+  } else if (lowerName === ".gitignore") {
+    iconName = "git";
+  } else if (lowerName === "tsconfig.json") {
+    iconName = "tsconfig";
+  } else if (ext && iconMap[ext]) {
+    iconName = iconMap[ext];
   }
+
+  return (
+    <img 
+      src={`/seti-icons/${iconName}.svg`} 
+      className="w-4 h-4 shrink-0" 
+      alt={iconName}
+    />
+  );
 };
