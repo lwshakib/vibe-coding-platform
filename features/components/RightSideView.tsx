@@ -60,6 +60,18 @@ const RightSideView: React.FC = () => {
     useState<ResponsiveMode>("desktop");
   const [reloadKey, setReloadKey] = useState(0);
 
+  const { state } = useWebContainerContext();
+  const hasAutoSwitchedRef = React.useRef(false);
+
+  React.useEffect(() => {
+    if (state === "ready" && !hasAutoSwitchedRef.current) {
+      setActiveTab("web-preview");
+      hasAutoSwitchedRef.current = true;
+    } else if (state !== "ready") {
+      hasAutoSwitchedRef.current = false;
+    }
+  }, [state, setActiveTab]);
+
   const handleRefresh = () => {
     setReloadKey((prev) => prev + 1);
   };

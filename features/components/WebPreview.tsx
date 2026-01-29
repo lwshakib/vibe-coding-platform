@@ -74,7 +74,7 @@ export default function WebPreview({
       case "installing":
         return "Installing project dependencies (npm install)...";
       case "starting":
-        return "Launching your application server...";
+        return "Launching your application server... (this may take a moment)";
       case "ready":
         return "Your live preview is active!";
       case "error":

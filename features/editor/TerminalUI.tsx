@@ -14,7 +14,11 @@ export default function TerminalUI() {
   const shellProcessRef = useRef<any>(null);
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const { instance, terminalRef: globalTerminalRef } = useWebContainerContext();
+  const {
+    instance,
+    terminalRef: globalTerminalRef,
+    state,
+  } = useWebContainerContext();
 
   useEffect(() => {
     setMounted(true);
@@ -80,7 +84,10 @@ export default function TerminalUI() {
 
   // Handle shell interaction
   useEffect(() => {
-    if (!instance || !xtermRef.current) return;
+    // Only spawn shell when ready, to ensure file system is prepared and clean path
+    if (!instance || !xtermRef.current || state !== "ready") return;
+
+    if (shellProcessRef.current) return;
 
     let shellProcess: any;
 
@@ -90,7 +97,9 @@ export default function TerminalUI() {
           cols: xtermRef.current!.cols,
           rows: xtermRef.current!.rows,
         },
+        cwd: "/home/project",
       });
+      // ...
 
       shellProcess.output.pipeTo(
         new WritableStream({
