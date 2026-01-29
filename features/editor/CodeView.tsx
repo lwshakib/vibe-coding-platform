@@ -89,7 +89,7 @@ const darkTheme = createTheme({
   ],
 });
 
-import { X } from "lucide-react";
+import { Keyboard, X } from "lucide-react";
 import { getFileIcon } from "./utils";
 
 export default function CodeView() {
@@ -191,8 +191,8 @@ export default function CodeView() {
     return (
       <div className="h-full w-full bg-background flex items-center justify-center text-muted-foreground select-none">
         <div className="flex flex-col items-center gap-2">
-          <div className="w-16 h-16 bg-muted rounded-2xl flex items-center justify-center mb-2">
-            <span className="text-3xl">⌨️</span>
+          <div className="w-20 h-20 bg-muted/30 rounded-3xl flex items-center justify-center mb-4 ring-1 ring-border/50">
+            <Keyboard className="w-10 h-10 opacity-20" />
           </div>
           <p className="text-sm font-medium">
             Select a file to view its content
