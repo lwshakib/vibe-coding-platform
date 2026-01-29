@@ -175,7 +175,7 @@ const FileTreeItem = ({
         <div className="relative">
           <div
             className={cn(
-              "group flex items-center gap-1.5 py-0.5 px-2 cursor-pointer hover:bg-accent text-sm select-none transition-colors min-w-0"
+              "group flex items-center gap-2 py-0.5 px-2 cursor-pointer hover:bg-accent text-sm select-none transition-colors min-w-0"
             )}
             style={{ paddingLeft: `${depth * 12 + 12}px` }}
             onClick={(e) => {
@@ -183,16 +183,17 @@ const FileTreeItem = ({
               if (node.type === "file") onFileClick(node.id);
             }}
           >
-            <span className="text-muted-foreground shrink-0 flex items-center justify-center w-4">
-              {node.type === "folder" &&
-                (isOpen ? (
+            <span className="text-muted-foreground shrink-0 flex items-center justify-center w-4 h-4">
+              {node.type === "folder" ? (
+                isOpen ? (
                   <ChevronDown className="w-3.5 h-3.5 text-muted-foreground/80" />
                 ) : (
                   <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/80" />
-                ))}
+                )
+              ) : (
+                getFileIcon(node.name)
+              )}
             </span>
-
-            {node.type === "file" && getFileIcon(node.name)}
 
             {renamingPath === node.id ? (
               <div className="flex-1 bg-background border-[0.5px] border-primary px-1 ml-1 rounded-none">
@@ -646,10 +647,10 @@ export default function FileExplorer() {
               <div className="flex-1 overflow-auto overflow-x-hidden">
                 {isCreating === "folder" && !parentPath && (
                   <div
-                    className="flex items-center gap-1.5 py-1 px-3 bg-accent"
+                    className="flex items-center gap-2 py-0.5 px-2 bg-accent"
                     style={{ paddingLeft: "12px" }}
                   >
-                    <span className="text-muted-foreground shrink-0 flex items-center justify-center w-4">
+                    <span className="text-muted-foreground shrink-0 flex items-center justify-center w-4 h-4">
                       <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/80" />
                     </span>
                     <div className="flex-1 bg-background border-[0.5px] border-primary px-1 ml-1 rounded-none">
@@ -709,18 +710,18 @@ export default function FileExplorer() {
                     />
                     {isCreating && parentPath === node.id && (
                       <div
-                        className="flex items-center gap-1.5 py-1 px-3 bg-accent"
+                        className="flex items-center gap-2 py-0.5 px-2 bg-accent"
                         style={{
                           paddingLeft: `${
                             node.id.split("/").length * 12 + 12
                           }px`,
                         }}
                       >
-                        <span className="text-muted-foreground shrink-0 flex items-center justify-center w-4">
+                        <span className="text-muted-foreground shrink-0 flex items-center justify-center w-4 h-4">
                           {isCreating === "folder" ? (
                             <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/80" />
                           ) : (
-                            <FileIcon className="w-3.5 h-3.5 text-muted-foreground/60" />
+                            getFileIcon(newItemName)
                           )}
                         </span>
                         <div className="flex-1 bg-background border-[0.5px] border-primary px-1 ml-1 rounded-none">
@@ -754,11 +755,11 @@ export default function FileExplorer() {
 
                 {isCreating === "file" && !parentPath && (
                   <div
-                    className="flex items-center gap-1.5 py-1 px-3 bg-accent"
+                    className="flex items-center gap-2 py-0.5 px-2 bg-accent"
                     style={{ paddingLeft: "12px" }}
                   >
-                    <span className="text-muted-foreground shrink-0 flex items-center justify-center w-4">
-                      <FileIcon className="w-3.5 h-3.5 text-muted-foreground/60" />
+                    <span className="text-muted-foreground shrink-0 flex items-center justify-center w-4 h-4">
+                      {getFileIcon(newItemName)}
                     </span>
                     <div className="flex-1 bg-background border-[0.5px] border-primary px-1 ml-1 rounded-none">
                       <input
