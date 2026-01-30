@@ -37,7 +37,12 @@ export async function streamText(
     model: GeminiModel(),
     system: getFineTunedPrompt(JSON.stringify(files)),
     maxOutputTokens: 65535,
-    messages: await convertToModelMessages(messages as unknown as UIMessage[]),
+    messages: await convertToModelMessages(
+      messages.map((m) => ({
+        ...m,
+        role: m.role.toLowerCase() as "user" | "assistant",
+      })) as unknown as UIMessage[]
+    ),
     tools: {
       google_search: google.tools.googleSearch({}),
       url_context: google.tools.urlContext({}),

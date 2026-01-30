@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     // Save user message if workspaceId is provided
     if (workspaceId) {
       const lastMessage = messages[messages.length - 1];
-      if (lastMessage && lastMessage.role === "user") {
+      if (lastMessage && lastMessage.role.toLowerCase() === "user") {
         await prisma.message.create({
           data: {
             workspaceId,

@@ -13,6 +13,7 @@ interface FileProgress {
 
 export interface ParsedVibeArtifact {
   introduction: string;
+  activeRoute?: string;
   files: {
     title: string;
     files: Record<string, FileNode>;
@@ -49,6 +50,10 @@ export function parseVibeArtifact(input: string): ParsedVibeArtifact {
   // Extract artifact title
   const titleMatch = input.match(/<vibeArtifact[^>]*title="([^"]+)"/);
   const artifactTitle = titleMatch ? titleMatch[1] : "";
+
+  // Extract activeRoute
+  const routeMatch = input.match(/<vibeArtifact[^>]*activeRoute="([^"]+)"/);
+  result.activeRoute = routeMatch ? routeMatch[1] : undefined;
 
   // Extract conclusion (text after </vibeArtifact>)
   const conclusionMatch = input.match(/(?<=<\/vibeArtifact>)[\s\S]*$/);
