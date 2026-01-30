@@ -17,6 +17,7 @@ enum AppType {
   VITE_APP
   NEXT_APP
   EXPRESS_APP
+  EXPO_APP
 }
 
 enum MessageRole {
