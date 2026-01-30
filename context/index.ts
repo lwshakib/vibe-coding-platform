@@ -47,6 +47,7 @@ interface WorkspaceStore {
   setCurrentWorkspace: (workspace: Workspace | null) => void;
   sendMessage: (content: string) => Promise<void>;
   streamingStatus: StreamingStatus;
+  setStreamingStatus: (status: StreamingStatus) => void;
   stopStreaming: () => void;
   activeTab: TabType;
   setActiveTab: (tab: TabType) => void;
@@ -57,6 +58,10 @@ interface WorkspaceStore {
   addOpenFile: (path: string) => void;
   closeFile: (path: string) => void;
   updateFiles: (files: any, immediate?: boolean) => Promise<void>;
+  activePreviewRoute: string;
+  setActivePreviewRoute: (route: string) => void;
+  pendingPreviewRoute: string | null;
+  setPendingPreviewRoute: (route: string | null) => void;
 }
 
 export const useWorkspaceStore = create<WorkspaceStore>((set) => ({
@@ -80,6 +85,7 @@ export const useWorkspaceStore = create<WorkspaceStore>((set) => ({
   currentWorkspace: null,
   setCurrentWorkspace: (workspace) => set({ currentWorkspace: workspace }),
   streamingStatus: "idle",
+  setStreamingStatus: (status) => set({ streamingStatus: status }),
   stopStreaming: () => set({ streamingStatus: "idle" }),
   activeTab: "code-editor",
   setActiveTab: (tab) => set({ activeTab: tab }),
@@ -139,6 +145,10 @@ export const useWorkspaceStore = create<WorkspaceStore>((set) => ({
       debouncedSave(currentWorkspace.id, files);
     }
   },
+  activePreviewRoute: "/",
+  setActivePreviewRoute: (route) => set({ activePreviewRoute: route }),
+  pendingPreviewRoute: null,
+  setPendingPreviewRoute: (route) => set({ pendingPreviewRoute: route }),
   sendMessage: async (content) => {
     // Add user message
     const newUserMessage = {

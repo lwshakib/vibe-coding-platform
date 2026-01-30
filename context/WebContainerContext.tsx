@@ -29,9 +29,13 @@ const WebContainerContext = createContext<WebContainerContextType | undefined>(
 );
 
 export function WebContainerProvider({ children }: { children: ReactNode }) {
-  const { currentWorkspace } = useWorkspaceStore();
+  const { currentWorkspace, streamingStatus } = useWorkspaceStore();
   const terminalRef = useRef<Terminal | null>(null);
-  const wc = useWebContainer(currentWorkspace?.files || null, terminalRef);
+  const wc = useWebContainer(
+    currentWorkspace?.files || null,
+    terminalRef,
+    streamingStatus === "streaming"
+  );
 
   return (
     <WebContainerContext.Provider value={{ ...wc, terminalRef }}>
