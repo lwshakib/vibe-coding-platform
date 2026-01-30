@@ -1,3 +1,4 @@
-export const log = (message: string) => {
-  console.log(`[ProjectDownloader]: ${message}`);
+﻿export const log = (message: string) => {
+  console.log(`[Vibe]: ${message}`);
 };
+
