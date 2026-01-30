@@ -35,11 +35,19 @@ import { CustomSearchBar } from "./CustomSearchBar";
 import CustomTabs from "./CustomTabs";
 import WebPreview from "./WebPreview";
 import { useWebContainerContext } from "@/context/WebContainerContext";
+import { downloadProjectAsZip } from "@/lib/download";
 
 type ResponsiveMode = "desktop" | "tablet" | "mobile";
 
 const RightSideView: React.FC = () => {
-  const { activeTab, setActiveTab, currentWorkspace } = useWorkspaceStore();
+  const {
+    activeTab,
+    setActiveTab,
+    currentWorkspace,
+    activePreviewRoute,
+    pendingPreviewRoute,
+    setPendingPreviewRoute,
+  } = useWorkspaceStore();
   const { url: previewUrl, port, setPort } = useWebContainerContext();
 
   const [isGithubDialogOpen, setIsGithubDialogOpen] = useState(false);
@@ -56,6 +64,12 @@ const RightSideView: React.FC = () => {
   };
 
   const [url, setUrl] = useState("/");
+
+  React.useEffect(() => {
+    if (activePreviewRoute) {
+      setUrl(activePreviewRoute);
+    }
+  }, [activePreviewRoute]);
   const [responsiveMode, setResponsiveMode] =
     useState<ResponsiveMode>("desktop");
   const [reloadKey, setReloadKey] = useState(0);
@@ -64,13 +78,21 @@ const RightSideView: React.FC = () => {
   const hasAutoSwitchedRef = React.useRef(false);
 
   React.useEffect(() => {
-    if (state === "ready" && !hasAutoSwitchedRef.current) {
-      setActiveTab("web-preview");
-      hasAutoSwitchedRef.current = true;
-    } else if (state !== "ready") {
+    if (state === "ready") {
+      if (!hasAutoSwitchedRef.current) {
+        setActiveTab("web-preview");
+        hasAutoSwitchedRef.current = true;
+      }
+      
+      // Apply pending route after mount/install is finished
+      if (pendingPreviewRoute) {
+        setUrl(pendingPreviewRoute);
+        setPendingPreviewRoute(null);
+      }
+    } else {
       hasAutoSwitchedRef.current = false;
     }
-  }, [state, setActiveTab]);
+  }, [state, setActiveTab, pendingPreviewRoute, setPendingPreviewRoute]);
 
   const handleRefresh = () => {
     setReloadKey((prev) => prev + 1);
@@ -159,7 +181,20 @@ const RightSideView: React.FC = () => {
                   <AlertDialogCancel className="bg-transparent border-border text-foreground hover:bg-accent">
                     Cancel
                   </AlertDialogCancel>
-                  <AlertDialogAction className="bg-primary text-primary-foreground hover:bg-primary/90">
+                  <AlertDialogAction
+                    className="bg-primary text-primary-foreground hover:bg-primary/90"
+                    onClick={() => {
+                      if (currentWorkspace?.files) {
+                        downloadProjectAsZip(
+                          currentWorkspace.name || "project",
+                          currentWorkspace.files as Record<
+                            string,
+                            { content: string }
+                          >
+                        );
+                      }
+                    }}
+                  >
                     Download ZIP
                   </AlertDialogAction>
                 </AlertDialogFooter>

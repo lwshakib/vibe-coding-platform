@@ -8,6 +8,8 @@ import { useWebContainerContext } from "@/context/WebContainerContext";
 import { useWorkspaceStore } from "@/context";
 import { useTheme } from "next-themes";
 
+import { Button } from "@/components/ui/button";
+
 type ResponsiveMode = "desktop" | "tablet" | "mobile";
 
 interface WebPreviewProps {
@@ -175,6 +177,25 @@ export default function WebPreview({
                     <span>Progress</span>
                     <span>{getProgressValue(state)}%</span>
                   </div>
+                </div>
+              )}
+
+              {state === "starting" && (
+                <div className="pt-4 animate-in fade-in slide-in-from-bottom-2 duration-1000 delay-5000">
+                  <p className="text-[10px] text-muted-foreground mb-2">
+                    Taking longer than expected?
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-[10px] uppercase tracking-wider px-4 border-primary/20 hover:bg-primary/5"
+                    onClick={() => {
+                      // Attempt to force ready if terminal shows it's likely up
+                      window.dispatchEvent(new CustomEvent("vibe-force-ready"));
+                    }}
+                  >
+                    Force Preview
+                  </Button>
                 </div>
               )}
             </div>

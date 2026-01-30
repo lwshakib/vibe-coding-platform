@@ -6,10 +6,15 @@ import AiInput from "./AiInput";
 import UserMessage from "./UserMessage";
 import AssistantMessage from "./AssistantMessage";
 import { useChat } from "@ai-sdk/react";
+import { ChevronLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 
 import { parseVibeArtifact } from "@/lib/parseVibeArtifact";
+import { LogoIcon } from "@/components/logo";
 
 const LeftSideView: React.FC = () => {
+  const router = useRouter();
   const { currentWorkspace } = useWorkspaceStore();
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameInput, setNameInput] = useState("");
@@ -19,7 +24,11 @@ const LeftSideView: React.FC = () => {
     messages,
     sendMessage,
     setMessages: setChatMessages,
+    status,
   } = useChat({});
+
+  const { updateFiles, setStreamingStatus, setPendingPreviewRoute } =
+    useWorkspaceStore();
 
   // Sync messages when workspace changes (e.g. navigating between workspaces)
   useEffect(() => {
@@ -27,7 +36,12 @@ const LeftSideView: React.FC = () => {
       setChatMessages(currentWorkspace.messages as any);
     }
   }, [currentWorkspace?.id, setChatMessages]);
-  const { updateFiles } = useWorkspaceStore();
+
+  useEffect(() => {
+    setStreamingStatus(
+      status === "streaming" || status === "submitted" ? "streaming" : "idle"
+    );
+  }, [status, setStreamingStatus]);
 
   // Parse artifacts from streaming messages and update workspace files
   useEffect(() => {
@@ -37,6 +51,11 @@ const LeftSideView: React.FC = () => {
       if (content.includes("<vibeArtifact")) {
         const parsed = parseVibeArtifact(content);
         const artifactFiles = parsed.files.flatFiles;
+
+        if (parsed.activeRoute) {
+          setPendingPreviewRoute(parsed.activeRoute);
+        }
+
         if (artifactFiles && Object.keys(artifactFiles).length > 0) {
           const currentFiles = currentWorkspace?.files || {};
           const mergedFiles = { ...currentFiles, ...artifactFiles };
@@ -44,7 +63,7 @@ const LeftSideView: React.FC = () => {
         }
       }
     }
-  }, [messages, updateFiles]);
+  }, [messages, updateFiles, setPendingPreviewRoute]);
 
   const currentName = currentWorkspace?.name || nameInput || "My Project";
 
@@ -78,31 +97,42 @@ const LeftSideView: React.FC = () => {
   return (
     <div className="flex flex-col w-full h-full bg-background overflow-hidden border-r border-border/40 font-inter">
       {/* Header with Project Name */}
-      <header className="h-14 px-6 flex items-center shrink-0 border-b border-border/10 bg-background/50 backdrop-blur-md z-10 transition-all">
-        <div className="flex items-center gap-3">
-          <div className="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_rgba(158,127,255,0.6)] animate-pulse" />
-          {isEditingName ? (
-            <input
-              value={nameInput}
-              onChange={(e) => setNameInput(e.target.value)}
-              onBlur={submitName}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") submitName();
-                if (e.key === "Escape") setIsEditingName(false);
-              }}
-              autoFocus
-              className="bg-transparent border-none outline-none p-0 text-foreground text-sm font-medium w-fit focus:ring-0"
-              style={{ width: `${Math.max(currentName.length + 1, 5)}ch` }}
-            />
-          ) : (
-            <h2
-              className="text-foreground/90 text-sm font-medium cursor-text hover:text-foreground transition-colors"
-              onDoubleClick={startEditing}
-              title="Double click to rename"
-            >
-              {currentName}
-            </h2>
-          )}
+      <header className="h-14 px-4 flex items-center shrink-0 border-b border-border/10 bg-background/50 backdrop-blur-md z-10 transition-all">
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            onClick={() => router.push("/workspaces")}
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </Button>
+          <div className="w-px h-4 bg-border/20 mx-1" />
+          <div className="flex items-center gap-3">
+            <div className="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_rgba(158,127,255,0.6)] animate-pulse" />
+            {isEditingName ? (
+              <input
+                value={nameInput}
+                onChange={(e) => setNameInput(e.target.value)}
+                onBlur={submitName}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") submitName();
+                  if (e.key === "Escape") setIsEditingName(false);
+                }}
+                autoFocus
+                className="bg-transparent border-none outline-none p-0 text-foreground text-sm font-medium w-fit focus:ring-0"
+                style={{ width: `${Math.max(currentName.length + 1, 5)}ch` }}
+              />
+            ) : (
+              <h2
+                className="text-foreground/90 text-sm font-medium cursor-text hover:text-foreground transition-colors line-clamp-1"
+                onDoubleClick={startEditing}
+                title="Double click to rename"
+              >
+                {currentName}
+              </h2>
+            )}
+          </div>
         </div>
       </header>
 
@@ -115,7 +145,7 @@ const LeftSideView: React.FC = () => {
             <div className="flex-1 flex flex-col items-center justify-center animate-in fade-in zoom-in-95 duration-1000">
               <div className="text-center max-w-md px-4">
                 <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-8 shadow-inner shadow-primary/20">
-                  <div className="w-8 h-8 rounded-lg bg-linear-to-br from-primary to-purple-400 rotate-12 shadow-lg" />
+                  <LogoIcon size={32} className="rotate-12 text-primary drop-shadow-sm" />
                 </div>
                 <h1 className="mb-4 text-4xl md:text-5xl font-bold text-foreground tracking-tight">
                   What do you <span className="text-primary italic">want</span>{" "}

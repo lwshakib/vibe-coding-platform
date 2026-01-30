@@ -91,6 +91,7 @@ const darkTheme = createTheme({
 
 import { Keyboard, X } from "lucide-react";
 import { getFileIcon } from "./utils";
+import { LogoIcon } from "@/components/logo";
 
 export default function CodeView() {
   const {
@@ -189,17 +190,23 @@ export default function CodeView() {
 
   if (!activeFile && openFiles.length === 0) {
     return (
-      <div className="h-full w-full bg-background flex items-center justify-center text-muted-foreground select-none">
-        <div className="flex flex-col items-center gap-2">
-          <div className="w-20 h-20 bg-muted/30 rounded-3xl flex items-center justify-center mb-4 ring-1 ring-border/50">
-            <Keyboard className="w-10 h-10 opacity-20" />
+      <div className="h-full w-full bg-background flex items-center justify-center text-muted-foreground select-none overflow-hidden relative">
+        <div className="flex flex-col items-center gap-4 relative z-10">
+          <div className="w-24 h-24 bg-muted/20 rounded-[2rem] flex items-center justify-center mb-6 ring-1 ring-border/50 shadow-inner group hover:scale-105 transition-transform duration-500">
+            <LogoIcon size={48} className="rotate-12 opacity-20 text-muted-foreground group-hover:opacity-40 transition-all duration-500" />
           </div>
-          <p className="text-sm font-medium">
-            Select a file to view its content
-          </p>
-          <p className="text-xs opacity-50">
-            Choose a file from the explorer on the left
-          </p>
+          <div className="space-y-2 text-center">
+            <h3 className="text-sm font-semibold text-foreground/20 tracking-[0.3em] ml-[0.3em] uppercase">
+              VIBE
+            </h3>
+            <div className="flex items-center justify-center gap-2">
+              <span className="w-8 h-[1px] bg-border/30" />
+              <p className="text-[10px] text-muted-foreground/20 font-medium uppercase tracking-widest leading-none">
+                Studio
+              </p>
+              <span className="w-8 h-[1px] bg-border/30" />
+            </div>
+          </div>
         </div>
       </div>
     );
