@@ -1,11 +1,12 @@
-import JSZip from "jszip";
+﻿import JSZip from "jszip";
 import { log } from "./logger";
 
 export const downloadProjectAsZip = async (
   projectName: string,
   files: Record<string, { content: string }>
 ) => {
-  const zip = new JSZip();
+  log(`Starting download for project: ${projectName}`);
+  log("Starting download..."); const zip = new JSZip();
 
   Object.entries(files).forEach(([path, { content }]) => {
     // Ensure directories are created as well if the path contains slashes
@@ -23,3 +24,4 @@ export const downloadProjectAsZip = async (
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
 };
+
