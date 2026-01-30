@@ -18,6 +18,8 @@ export function getInitialFiles(
     ".vercel",
     ".DS_Store",
     "generated",
+    "app-example",
+    ".expo",
   ]);
 
   const ignoredExtensions = new Set([

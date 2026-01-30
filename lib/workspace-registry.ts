@@ -41,6 +41,16 @@ export const WORKSPACE_REGISTRY: WorkspaceAppTemplate[] = [
     framework: "Express",
     logoStyling: "bg-white p-1 rounded-md",
   },
+  {
+    type: AppType.EXPO_APP,
+    label: "Expo - Mobile",
+    description: "Build cross-platform mobile apps with React Native and Expo.",
+    logo: "/logos/react-native.svg",
+    folder: "expo-app",
+    category: "mobile",
+    framework: "Expo",
+    logoStyling: "bg-white p-1 rounded-md",
+  },
 ];
 
 export function getTemplateByType(
