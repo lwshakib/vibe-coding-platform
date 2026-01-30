@@ -11,7 +11,7 @@ export const downloadProjectAsZip = async (
   Object.entries(files).forEach(([path, { content }]) => {
     // Ensure directories are created as well if the path contains slashes
     // jszip's zip.file("path/to/file", content) automatically handles intermediate directories
-    zip.file(path, content);
+    zip.file(path, content); log("Adding " + path);
   });
 
   const blob = await zip.generateAsync({ type: "blob" });
@@ -24,4 +24,5 @@ export const downloadProjectAsZip = async (
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
 };
+
 
