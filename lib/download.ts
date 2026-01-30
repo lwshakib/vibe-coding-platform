@@ -22,7 +22,8 @@ export const downloadProjectAsZip = async (
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  URL.revokeObjectURL(url); log("Download complete.");
 };
+
 
 
