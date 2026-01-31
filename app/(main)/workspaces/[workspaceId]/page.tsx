@@ -7,6 +7,8 @@ import RightSideView from "@/features/components/RightSideView";
 import { useWorkspaceStore } from "@/context";
 import { WebContainerProvider } from "@/context/WebContainerContext";
 
+import { ExpoQRDialog } from "@/features/components/ExpoQRDialog";
+
 export default function WorkspacePage() {
   const params = useParams();
   const searchParams = useSearchParams();
@@ -71,6 +73,7 @@ export default function WorkspacePage() {
           <RightSideView />
         </div>
       </div>
+      <ExpoQRDialog />
     </WebContainerProvider>
   );
 }
