@@ -73,7 +73,7 @@ export async function POST(req: Request) {
       },
     },
     toolChoice:'auto',
-    stopWhen: stepCountIs(5), 
+    stopWhen: stepCountIs(5)
   });
 
   return result.toTextStreamResponse();
