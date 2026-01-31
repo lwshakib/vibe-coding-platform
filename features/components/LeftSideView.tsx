@@ -146,9 +146,7 @@ const LeftSideView: React.FC = () => {
           {messages.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center animate-in fade-in zoom-in-95 duration-1000">
               <div className="text-center max-w-md px-4">
-                <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-8 shadow-inner shadow-primary/20">
-                  <LogoIcon size={32} className="rotate-12 text-primary drop-shadow-sm" />
-                </div>
+                <LogoIcon size={80} className="rotate-12 text-primary/30 mx-auto mb-12 drop-shadow-sm" />
                 <h1 className="mb-4 text-4xl md:text-5xl font-bold text-foreground tracking-tight">
                   What do you <span className="text-primary italic">want</span>{" "}
                   to build?
