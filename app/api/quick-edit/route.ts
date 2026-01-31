@@ -37,7 +37,7 @@ export async function POST(req: Request) {
     tools: {
       scrape: {
         description: "Scrape content from a URL to get context for editing code.",
-        parameters: z.object({
+        inputSchema: z.object({
           url: z.string().describe("The URL to scrape content from"),
         }),
         execute: async ({ url }) => {
