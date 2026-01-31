@@ -29,13 +29,13 @@ import { cn } from "@/lib/utils";
 
 export default function TerminalUI() {
   const [tabs, setTabs] = useState<{ id: string; name: string }[]>([
-    { id: "1", name: "Main Terminal" },
+    { id: "1", name: "Vibe" },
   ]);
   const [activeTabId, setActiveTabId] = useState("1");
   
   const terminalContainersRef = useRef<Record<string, HTMLDivElement | null>>({});
   const xtermsRef = useRef<Record<string, XTerm>>({});
-  const shellProcessesRef = useRef<Record<string, { process: any, onData: any }>>({});
+  const shellProcessesRef = useRef<Record<string, { process: any, onData: any, onResize: any }>>({});
   const fitAddonsRef = useRef<Record<string, FitAddon>>({});
   
   const { theme, resolvedTheme } = useTheme();
@@ -93,10 +93,11 @@ export default function TerminalUI() {
     xtermsRef.current[tabId] = term;
     fitAddonsRef.current[tabId] = fitAddon;
 
-    // Set global ref if it's the first terminal
+    term.writeln("\x1b[32mWelcome to Vibe Terminal\x1b[0m");
+
+    // ONLY set global ref for the "Vibe" terminal (ID "1")
     if (tabId === "1") {
       globalTerminalRef.current = term;
-      term.writeln("\x1b[32mWelcome to Vibe Terminal\x1b[0m");
     }
 
     const timer = setTimeout(() => {
@@ -131,20 +132,40 @@ export default function TerminalUI() {
     });
   }, [mounted, tabs, initTerminal]);
 
+  // Focus active terminal
+  useEffect(() => {
+    if (activeTabId && xtermsRef.current[activeTabId]) {
+      const term = xtermsRef.current[activeTabId];
+      const fitAddon = fitAddonsRef.current[activeTabId];
+      
+      setTimeout(() => {
+        fitAddon?.fit();
+        term.focus();
+      }, 50);
+    }
+  }, [activeTabId]);
+
   // Handle shell interaction for each terminal
   useEffect(() => {
     if (!instance || state !== "ready") return;
 
     tabs.forEach(async (tab) => {
       const term = xtermsRef.current[tab.id];
+      const fitAddon = fitAddonsRef.current[tab.id];
       if (!term || shellProcessesRef.current[tab.id]) return;
+
+      fitAddon?.fit();
 
       const shellProcess = await instance.spawn("jsh", {
         terminal: {
-          cols: term.cols,
-          rows: term.rows,
+          cols: term.cols || 80,
+          rows: term.rows || 24,
         },
-        cwd: "/home/project",
+        cwd: "/project",
+        env: {
+          HOME: "/project",
+          PS1: "\x1b[32m[project]\x1b[0m $ ",
+        },
       });
 
       shellProcess.output.pipeTo(
@@ -152,7 +173,7 @@ export default function TerminalUI() {
           write(data) {
             term.write(data);
             
-            // Expo QR Code detection (only on Terminal 1)
+            // Expo QR Code detection (only on Vibe terminal)
             if (tab.id === "1") {
               const output = typeof data === "string" 
                 ? data 
@@ -176,21 +197,24 @@ export default function TerminalUI() {
         input.write(data);
       });
 
-      shellProcessesRef.current[tab.id] = { process: shellProcess, onData };
-    });
+      const onResize = term.onResize(({ cols, rows }) => {
+        shellProcess.resize({ cols, rows });
+      });
 
-    return () => {
-      // We don't necessarily want to kill all shells on Every tab change, 
-      // but if the instance or state changes we should.
-      // Usually useEffect cleanup handles this.
-    };
+      shellProcessesRef.current[tab.id] = { process: shellProcess, onData, onResize };
+
+      // Ensure prompt shows up by sending a small enter if it's not showing
+      // Sometimes jsh needs a kick start to show PS1
+      input.write("\r");
+    });
   }, [instance, state, tabs, setExpoQRData]);
 
   // Terminate shell processes on unmount or instance change
   useEffect(() => {
     return () => {
-      Object.values(shellProcessesRef.current).forEach(({ process, onData }) => {
+      Object.values(shellProcessesRef.current).forEach(({ process, onData, onResize }) => {
         onData.dispose();
+        onResize.dispose();
         process.kill();
       });
       shellProcessesRef.current = {};
@@ -200,7 +224,8 @@ export default function TerminalUI() {
   const addTab = () => {
     if (tabs.length >= 3) return;
     const newId = String(Date.now());
-    setTabs([...tabs, { id: newId, name: `Terminal ${tabs.length + 1}` }]);
+    const name = tabs.length === 1 ? "PowerShell" : `Terminal ${tabs.length + 1}`;
+    setTabs([...tabs, { id: newId, name }]);
     setActiveTabId(newId);
   };
 
@@ -215,9 +240,9 @@ export default function TerminalUI() {
       setActiveTabId(newTabs[newTabs.length - 1].id);
     }
 
-    // Cleanup terminal and process
     if (shellProcessesRef.current[id]) {
       shellProcessesRef.current[id].onData.dispose();
+      shellProcessesRef.current[id].onResize.dispose();
       shellProcessesRef.current[id].process.kill();
       delete shellProcessesRef.current[id];
     }
@@ -301,7 +326,6 @@ export default function TerminalUI() {
           <div className="flex items-center gap-1">
             {instance && (
               <>
-                {/* Installation Controls */}
                 {!isInstalling ? (
                   <HeaderButton 
                     icon={Download}
@@ -321,7 +345,6 @@ export default function TerminalUI() {
 
                 <div className="w-px h-4 bg-border mx-0.5" />
 
-                {/* Server Controls */}
                 {!isRunning ? (
                   <HeaderButton 
                     icon={Play}

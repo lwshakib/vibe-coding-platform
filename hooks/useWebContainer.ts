@@ -137,7 +137,7 @@ export function useWebContainer(
     await new Promise(resolve => setTimeout(resolve, 500));
 
     const devProcess = await wc.spawn("npm", ["run", "dev"], {
-      cwd: "/home/project",
+      cwd: "/project",
       env: { PORT: "3000" },
     });
 
@@ -206,7 +206,7 @@ export function useWebContainer(
     
     try {
       const installProcess = await wc.spawn("npm", ["install"], {
-        cwd: "/home/project",
+        cwd: "/project",
       });
       installProcessRef.current = installProcess;
 
@@ -346,9 +346,9 @@ export function useWebContainer(
             // We use /project instead of /home/project if we want to be safe, 
             // but the current structure has home/project. 
             // Better to just rm -rf existing contents if possible.
-            const ls = await wc.fs.readdir("home/project").catch(() => []);
+            const ls = await wc.fs.readdir("/project").catch(() => []);
             for (const item of ls) {
-              await wc.fs.rm(`home/project/${item}`, { recursive: true }).catch(() => {});
+              await wc.fs.rm(`/project/${item}`, { recursive: true }).catch(() => {});
             }
           } catch (e) {
             // Likely directory doesn't exist yet, ignore
@@ -358,12 +358,8 @@ export function useWebContainer(
 
           const tree = transformToWebContainerTree(finalFiles);
           const mountTree: FileSystemTree = {
-            home: {
-              directory: {
-                project: {
-                  directory: tree,
-                },
-              },
+            project: {
+              directory: tree,
             },
           };
 
@@ -380,7 +376,7 @@ export function useWebContainer(
         } else {
           for (const [path, { content }] of Object.entries(finalFiles)) {
             if (mountedFilesRef.current[path] !== content) {
-              const fullPath = `home/project/${path}`;
+              const fullPath = `project/${path}`;
               const parts = fullPath.split("/");
               if (parts.length > 1) {
                 const dir = parts.slice(0, -1).join("/");
