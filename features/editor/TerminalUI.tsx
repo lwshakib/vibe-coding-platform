@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { Terminal as XTerm } from "xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "xterm/css/xterm.css";
@@ -11,7 +11,8 @@ import {
   Play, 
   Square, 
   Download, 
-  XCircle 
+  XCircle,
+  Plus
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useWebContainerContext } from "@/context/WebContainerContext";
@@ -23,11 +24,19 @@ import {
   TooltipTrigger, 
   TooltipProvider 
 } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 
 export default function TerminalUI() {
-  const terminalRef = useRef<HTMLDivElement>(null);
-  const xtermRef = useRef<XTerm | null>(null);
-  const shellProcessRef = useRef<any>(null);
+  const [tabs, setTabs] = useState<{ id: string; name: string }[]>([
+    { id: "1", name: "Terminal 1" },
+  ]);
+  const [activeTabId, setActiveTabId] = useState("1");
+  
+  const terminalContainersRef = useRef<Record<string, HTMLDivElement | null>>({});
+  const xtermsRef = useRef<Record<string, XTerm>>({});
+  const shellProcessesRef = useRef<Record<string, { process: any, onData: any }>>({});
+  const fitAddonsRef = useRef<Record<string, FitAddon>>({});
+  
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const { setExpoQRData, expoQRData, setShowExpoQR } = useWorkspaceStore();
@@ -49,8 +58,9 @@ export default function TerminalUI() {
     setMounted(true);
   }, []);
 
-  useEffect(() => {
-    if (!terminalRef.current || !mounted) return;
+  // Initialize terminal for a specific tab
+  const initTerminal = useCallback((tabId: string) => {
+    if (!terminalContainersRef.current[tabId] || xtermsRef.current[tabId]) return;
 
     const isLight = resolvedTheme === "light" || theme === "light";
 
@@ -77,50 +87,61 @@ export default function TerminalUI() {
 
     const fitAddon = new FitAddon();
     term.loadAddon(fitAddon);
+    term.open(terminalContainersRef.current[tabId]!);
+    
+    xtermsRef.current[tabId] = term;
+    fitAddonsRef.current[tabId] = fitAddon;
 
-    term.open(terminalRef.current);
-
-    // Set global ref so useWebContainer can write to it
-    globalTerminalRef.current = term;
+    // Set global ref if it's the first terminal
+    if (tabId === "1") {
+      globalTerminalRef.current = term;
+      term.writeln("\x1b[32mWelcome to Vibe Terminal\x1b[0m");
+    }
 
     const timer = setTimeout(() => {
       fitAddon.fit();
     }, 100);
 
-    term.writeln("\x1b[32mWelcome to Vibe Terminal\x1b[0m");
-
-    xtermRef.current = term;
-
     const resizeObserver = new ResizeObserver(() => {
       fitAddon.fit();
     });
-
-    if (terminalRef.current) {
-      resizeObserver.observe(terminalRef.current);
-    }
+    resizeObserver.observe(terminalContainersRef.current[tabId]!);
 
     return () => {
       resizeObserver.disconnect();
       clearTimeout(timer);
       term.dispose();
-      globalTerminalRef.current = null;
+      delete xtermsRef.current[tabId];
+      delete fitAddonsRef.current[tabId];
+      if (tabId === "1") {
+        globalTerminalRef.current = null;
+      }
     };
-  }, [mounted, theme, resolvedTheme, globalTerminalRef]);
+  }, [theme, resolvedTheme, globalTerminalRef]);
 
-  // Handle shell interaction
+  // Handle Tab changes and initial mount
   useEffect(() => {
-    // Only spawn shell when ready, to ensure file system is prepared and clean path
-    if (!instance || !xtermRef.current || state !== "ready") return;
+    if (!mounted) return;
+    
+    tabs.forEach(tab => {
+      if (!xtermsRef.current[tab.id]) {
+        initTerminal(tab.id);
+      }
+    });
+  }, [mounted, tabs, initTerminal]);
 
-    if (shellProcessRef.current) return;
+  // Handle shell interaction for each terminal
+  useEffect(() => {
+    if (!instance || state !== "ready") return;
 
-    let shellProcess: any;
+    tabs.forEach(async (tab) => {
+      const term = xtermsRef.current[tab.id];
+      if (!term || shellProcessesRef.current[tab.id]) return;
 
-    const startShell = async () => {
-      shellProcess = await instance.spawn("jsh", {
+      const shellProcess = await instance.spawn("jsh", {
         terminal: {
-          cols: xtermRef.current!.cols,
-          rows: xtermRef.current!.rows,
+          cols: term.cols,
+          rows: term.rows,
         },
         cwd: "/home/project",
       });
@@ -128,25 +149,21 @@ export default function TerminalUI() {
       shellProcess.output.pipeTo(
         new WritableStream({
           write(data) {
-            xtermRef.current?.write(data);
+            term.write(data);
             
-            // Ensure data is string for scanning
-            const output = typeof data === "string" 
-              ? data 
-              : new TextDecoder().decode(data);
- 
-            // Scan for Expo links (exp:// or qr.expo.dev)
-            const expoLinkRegex = /(exp:\/\/[^\s\x1b\x07]+|https:\/\/qr\.expo\.dev\/[^\s\x1b\x07]+)/g;
-            const matches = output.match(expoLinkRegex);
-            if (matches && matches.length > 0) {
-              // Clean the captured URL from any terminal garbage
-              const cleanUrl = matches[matches.length - 1]
-                .replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-m]/g, "") // remove remaining ansi
-                .replace(/[\x00-\x1F\x7F-\x9F]/g, "") // remove control characters
-                .trim();
-              
-              if (cleanUrl) {
-                setExpoQRData(cleanUrl);
+            // Expo QR Code detection (only on Terminal 1)
+            if (tab.id === "1") {
+              const output = typeof data === "string" 
+                ? data 
+                : new TextDecoder().decode(data);
+              const expoLinkRegex = /(exp:\/\/[^\s\x1b\x07]+|https:\/\/qr\.expo\.dev\/[^\s\x1b\x07]+)/g;
+              const matches = output.match(expoLinkRegex);
+              if (matches && matches.length > 0) {
+                const cleanUrl = matches[matches.length - 1]
+                  .replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-m]/g, "")
+                  .replace(/[\x00-\x1F\x7F-\x9F]/g, "")
+                  .trim();
+                if (cleanUrl) setExpoQRData(cleanUrl);
               }
             }
           },
@@ -154,23 +171,60 @@ export default function TerminalUI() {
       );
 
       const input = shellProcess.input.getWriter();
-
-      const onData = xtermRef.current!.onData((data) => {
+      const onData = term.onData((data) => {
         input.write(data);
       });
 
-      shellProcessRef.current = { shellProcess, onData };
-    };
-
-    startShell();
+      shellProcessesRef.current[tab.id] = { process: shellProcess, onData };
+    });
 
     return () => {
-      if (shellProcessRef.current) {
-        shellProcessRef.current.onData.dispose();
-        shellProcessRef.current.shellProcess.kill();
-      }
+      // We don't necessarily want to kill all shells on Every tab change, 
+      // but if the instance or state changes we should.
+      // Usually useEffect cleanup handles this.
     };
-  }, [instance, state, setExpoQRData]);
+  }, [instance, state, tabs, setExpoQRData]);
+
+  // Terminate shell processes on unmount or instance change
+  useEffect(() => {
+    return () => {
+      Object.values(shellProcessesRef.current).forEach(({ process, onData }) => {
+        onData.dispose();
+        process.kill();
+      });
+      shellProcessesRef.current = {};
+    };
+  }, [instance]);
+
+  const addTab = () => {
+    if (tabs.length >= 3) return;
+    const newId = String(Date.now());
+    setTabs([...tabs, { id: newId, name: `Terminal ${tabs.length + 1}` }]);
+    setActiveTabId(newId);
+  };
+
+  const removeTab = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (tabs.length <= 1 || id === "1") return;
+    
+    const newTabs = tabs.filter(t => t.id !== id);
+    setTabs(newTabs);
+    
+    if (activeTabId === id) {
+      setActiveTabId(newTabs[newTabs.length - 1].id);
+    }
+
+    // Cleanup terminal and process
+    if (shellProcessesRef.current[id]) {
+      shellProcessesRef.current[id].onData.dispose();
+      shellProcessesRef.current[id].process.kill();
+      delete shellProcessesRef.current[id];
+    }
+    if (xtermsRef.current[id]) {
+      xtermsRef.current[id].dispose();
+      delete xtermsRef.current[id];
+    }
+  };
 
   const HeaderButton = ({ 
     icon: Icon, 
@@ -208,15 +262,42 @@ export default function TerminalUI() {
   return (
     <TooltipProvider delayDuration={400}>
       <div className="h-full w-full bg-background flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between px-4 h-9 border-b border-border bg-muted/50 shrink-0">
-          <div className="flex items-center gap-2">
-            <TerminalIcon className="w-4 h-4 text-muted-foreground" />
-            <span className="text-xs font-medium text-muted-foreground">
-              Terminal
-            </span>
+        <div className="flex items-center justify-between px-2 h-9 border-b border-border bg-muted/50 shrink-0">
+          <div className="flex items-center gap-1 overflow-x-auto no-scrollbar max-w-[70%]">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTabId(tab.id)}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-1 h-7 text-xs font-medium rounded-md transition-all whitespace-nowrap",
+                  activeTabId === tab.id 
+                    ? "bg-background text-foreground shadow-sm border border-border" 
+                    : "text-muted-foreground hover:bg-background/50"
+                )}
+              >
+                <TerminalIcon className="w-3 h-3" />
+                {tab.name}
+                {tab.id !== "1" && (
+                  <XCircle 
+                    className="w-3 h-3 ml-1 hover:text-red-500 transition-colors" 
+                    onClick={(e) => removeTab(tab.id, e)}
+                  />
+                )}
+              </button>
+            ))}
+            {tabs.length < 3 && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 rounded-md"
+                onClick={addTab}
+              >
+                <Plus className="w-3.5 h-3.5" />
+              </Button>
+            )}
           </div>
           
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1">
             {instance && (
               <>
                 {/* Installation Controls */}
@@ -284,12 +365,19 @@ export default function TerminalUI() {
           </div>
         </div>
         <div className="flex-1 p-2 min-h-0 relative bg-background">
-          <div ref={terminalRef} className="h-full w-full" />
+          {tabs.map((tab) => (
+            <div 
+              key={tab.id}
+              ref={(el) => { terminalContainersRef.current[tab.id] = el }}
+              className={cn(
+                "h-full w-full",
+                activeTabId === tab.id ? "block" : "hidden"
+              )}
+            />
+          ))}
         </div>
       </div>
     </TooltipProvider>
   );
 }
 
-// Utility function since I can't easily import it here if it's missing, but I'll assume cn is available in the project
-import { cn } from "@/lib/utils";
