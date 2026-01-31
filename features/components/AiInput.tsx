@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef } from "react";
-import { Paperclip, Sparkles, SendHorizontal } from "lucide-react";
+import { Paperclip, Sparkles, SendHorizontal, Code, X } from "lucide-react";
 import { useChat } from "@ai-sdk/react";
 import { useWorkspaceStore } from "@/context";
 
@@ -10,16 +10,15 @@ interface AiInputProps {
 }
 
 const AiInput: React.FC<AiInputProps> = ({ onSend }) => {
-  const [input, setInput] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { currentWorkspace } = useWorkspaceStore();
+  const { currentWorkspace, chatInput, setChatInput, selectedContexts, removeSelectedContext } = useWorkspaceStore();
 
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
-    if (input.trim() || files.length > 0) {
-      onSend(input, files);
-      setInput("");
+    if (chatInput.trim() || files.length > 0) {
+      onSend(chatInput, files);
+      setChatInput("");
       setFiles([]);
     }
   };
@@ -35,7 +34,7 @@ const AiInput: React.FC<AiInputProps> = ({ onSend }) => {
   };
 
   return (
-    <div className="py-6 bg-background">
+    <div className="pb-2 bg-background">
       <div className="mx-auto w-full max-w-lg">
         {/* Token Counter Badge */}
         <div className="relative h-6.5">
@@ -56,8 +55,8 @@ const AiInput: React.FC<AiInputProps> = ({ onSend }) => {
         >
           <textarea
             rows={1}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
+            value={chatInput}
+            onChange={(e) => setChatInput(e.target.value)}
             placeholder="How can Vibe help you today?"
             className="mb-4 w-full bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground resize-none py-1 scrollbar-hide min-h-24 max-h-50"
             onKeyDown={(e) => {
@@ -67,6 +66,34 @@ const AiInput: React.FC<AiInputProps> = ({ onSend }) => {
               }
             }}
           />
+
+          {/* Selected Context Chips */}
+          {selectedContexts.length > 0 && (
+            <div className="mb-4 flex flex-wrap gap-2">
+              {selectedContexts.map((ctx) => (
+                <div
+                  key={ctx.id}
+                  className="group flex items-center gap-2 bg-primary/10 border border-primary/20 px-2.5 py-1.5 rounded-lg text-xs text-primary hover:bg-primary/15 transition-colors"
+                  title={`${ctx.path}\nLines ${ctx.fromLine}-${ctx.toLine}`}
+                >
+                  <Code size={12} className="shrink-0" />
+                  <span className="truncate max-w-32 font-medium">
+                    {ctx.path.split('/').pop()}
+                  </span>
+                  <span className="text-primary/60 text-[10px]">
+                    L{ctx.fromLine}{ctx.fromLine !== ctx.toLine ? `-${ctx.toLine}` : ''}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => removeSelectedContext(ctx.id)}
+                    className="opacity-0 group-hover:opacity-100 text-primary/60 hover:text-destructive transition-all"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
 
           {files.length > 0 && (
             <div className="mb-4 flex flex-wrap gap-2">
@@ -117,7 +144,7 @@ const AiInput: React.FC<AiInputProps> = ({ onSend }) => {
 
             <button
               type="submit"
-              disabled={!input.trim() && files.length === 0}
+              disabled={!chatInput.trim() && files.length === 0 && selectedContexts.length === 0}
               className="ml-auto text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               title="Send Message"
             >
