@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
         await prisma.message.create({
           data: {
             workspaceId,
-            role: "USER",
+            role: "user",
             parts: lastMessage.parts || [
               { type: "text", text: lastMessage.content },
             ],
