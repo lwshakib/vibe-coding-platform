@@ -84,7 +84,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
           {parsedContent.introduction ||
           hasFiles ||
           (parsedContent.conclusion && !isStreaming) ? (
-            <div className="bg-muted border border-border rounded-2xl p-4 shadow-sm">
+            <div className="bg-muted text-foreground border border-border rounded-2xl p-4 shadow-sm">
               <div className="space-y-4">
                 {/* Introduction Text */}
                 {parsedContent.introduction && (
@@ -173,7 +173,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
             </div>
           ) : (
             /* Fallback for plain text messages OR initial state */
-            <div className="bg-muted border border-border rounded-2xl p-4 shadow-sm">
+            <div className="bg-muted text-foreground border border-border rounded-2xl p-4 shadow-sm">
               <div className="flex flex-col gap-2">
                 {isStreaming && content === "" && (
                   <div className="flex gap-1.5 p-1">

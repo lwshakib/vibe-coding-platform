@@ -11,12 +11,14 @@ type WebContainerState =
   | "installing"
   | "starting"
   | "ready"
+  | "stopped"
   | "error";
 
 export function useWebContainer(
   files: Record<string, { content: string }> | null,
   terminalRef?: React.MutableRefObject<Terminal | null>,
-  isStreaming: boolean = false
+  isStreaming: boolean = false,
+  workspaceId?: string
 ) {
   const [instance, setInstance] = useState<WebContainer | null>(null);
   const [state, setState] = useState<WebContainerState>("idle");
@@ -31,13 +33,47 @@ export function useWebContainer(
   const isBootingRef = useRef(false);
   const isMountingRef = useRef(false);
   const devProcessRef = useRef<WebContainerProcess | null>(null);
-  const prevIsStreamingRef = useRef(isStreaming);
+  const installProcessRef = useRef<WebContainerProcess | null>(null);
+  const prevWorkspaceIdRef = useRef<string | undefined>(workspaceId);
 
   const writeToTerminal = (data: string) => {
     if (terminalRef?.current) {
       terminalRef.current.write(data.replace(/\n/g, "\r\n"));
     }
   };
+
+  // Handle Workspace Switch
+  useEffect(() => {
+    if (workspaceId && prevWorkspaceIdRef.current && workspaceId !== prevWorkspaceIdRef.current) {
+      console.log(`[WebContainer] Workspace changed from ${prevWorkspaceIdRef.current} to ${workspaceId}, resetting...`);
+      
+      // Kill existing processes if any
+      if (devProcessRef.current) {
+        devProcessRef.current.kill();
+        devProcessRef.current = null;
+      }
+      if (installProcessRef.current) {
+        installProcessRef.current.kill();
+        installProcessRef.current = null;
+      }
+      
+      // Reset local state
+      mountedFilesRef.current = {};
+      isStartedRef.current = false;
+      isInstallingRef.current = false;
+      isMountingRef.current = false;
+      setState("idle");
+      setUrl(null);
+      setPort(null);
+      
+      // Clear terminal
+      if (terminalRef?.current) {
+        terminalRef.current.clear();
+        terminalRef.current.write("\x1b[33mWorkspace changed, resetting environment...\x1b[0m\r\n");
+      }
+    }
+    prevWorkspaceIdRef.current = workspaceId;
+  }, [workspaceId, terminalRef]);
 
   const transformToWebContainerTree = (
     files: Record<string, { content: string }>
@@ -71,15 +107,34 @@ export function useWebContainer(
     return tree;
   };
 
-  const startDevServer = async (wc: WebContainer) => {
+  const inputWriterRef = useRef<WritableStreamDefaultWriter<string> | null>(null);
+
+  const startDevServer = useCallback(async (wc: WebContainer) => {
+    setState((prev) => (prev === "ready" ? "ready" : "starting"));
+
     if (devProcessRef.current) {
+      writeToTerminal("\x1b[33mFinishing existing dev server process...\x1b[0m\r\n");
       devProcessRef.current.kill();
+      
+      try {
+        // Wait for the process to actually exit to ensure port is freed
+        // Use a timeout to prevent hanging if the process is stubborn
+        await Promise.race([
+          devProcessRef.current.exit,
+          new Promise(resolve => setTimeout(resolve, 2000))
+        ]);
+      } catch (e) {
+        console.warn("[WebContainer] Error waiting for process exit:", e);
+      }
+      
+      devProcessRef.current = null;
       writeToTerminal("\x1b[33mRestarting dev server...\x1b[0m\r\n");
     } else {
       writeToTerminal("\x1b[33mStarting dev server...\x1b[0m\r\n");
     }
 
-    setState((prev) => (prev === "ready" ? "ready" : "starting"));
+    // Small delay to ensure the OS/WebContainer has fully released the port
+    await new Promise(resolve => setTimeout(resolve, 500));
 
     const devProcess = await wc.spawn("npm", ["run", "dev"], {
       cwd: "/home/project",
@@ -100,16 +155,6 @@ export function useWebContainer(
             !url
           ) {
             console.log("[WebContainer] Fallback: Server might be ready");
-            // If we don't get the event in 2 seconds, we'll try to use the default port
-            setTimeout(async () => {
-              if (!isStartedRef.current) {
-                const defaultUrl = `https://3000-${
-                  (wc as any)._node?.id || "preview"
-                }.webcontainer.io`;
-                // Note: We can't easily get the internal ID, so we hope the event eventually fires
-                // but we can at least log that we're waiting.
-              }
-            }, 2000);
           }
 
           // Expo QR Code detection
@@ -126,7 +171,83 @@ export function useWebContainer(
     );
 
     devProcessRef.current = devProcess;
-  };
+  }, [url, setExpoQRData, setShowExpoQR]);
+
+  const stopDevServer = useCallback(async () => {
+    if (devProcessRef.current) {
+      writeToTerminal("\x1b[33mStopping dev server...\x1b[0m\r\n");
+      devProcessRef.current.kill();
+      
+      try {
+        await Promise.race([
+          devProcessRef.current.exit,
+          new Promise(resolve => setTimeout(resolve, 2000))
+        ]);
+      } catch (e) {
+        console.warn("[WebContainer] Error stopping dev server:", e);
+      }
+      
+      devProcessRef.current = null;
+      setState("stopped");
+      setUrl(null);
+      setPort(null);
+      writeToTerminal("\x1b[33mDev server stopped.\x1b[0m\r\n");
+    }
+  }, []);
+
+  const runInstall = useCallback(async (wc: WebContainer) => {
+    if (isInstallingRef.current) return;
+    isInstallingRef.current = true;
+
+    setState("installing");
+    writeToTerminal(
+      "\x1b[33mRunning npm install to sync dependencies...\x1b[0m\r\n"
+    );
+    
+    try {
+      const installProcess = await wc.spawn("npm", ["install"], {
+        cwd: "/home/project",
+      });
+      installProcessRef.current = installProcess;
+
+      installProcess.output.pipeTo(
+        new WritableStream({
+          write: (data) => writeToTerminal(data),
+        })
+      );
+
+      const installExitCode = await installProcess.exit;
+      
+      if (installExitCode !== 0 && installProcessRef.current) {
+        writeToTerminal(
+          "\x1b[31mDependency installation failed.\x1b[0m\r\n"
+        );
+        isStartedRef.current = false;
+        throw new Error("Failed to install dependencies");
+      }
+      
+      if (installProcessRef.current) {
+        writeToTerminal("\x1b[32mDependencies synced.\x1b[0m\r\n");
+      }
+    } finally {
+      installProcessRef.current = null;
+      isInstallingRef.current = false;
+      // After install, we usually want to start or restart the server if it was running
+      // but runInstall by itself shouldn't decide that. 
+      // We'll let the UI or mountAndRun handle the follow-up.
+    }
+  }, []);
+
+  const stopInstall = useCallback(async () => {
+    if (installProcessRef.current) {
+      writeToTerminal("\x1b[33mStopping dependency installation...\x1b[0m\r\n");
+      installProcessRef.current.kill();
+      installProcessRef.current = null;
+      isInstallingRef.current = false;
+      setState("idle"); // or should it go back to ready if it was ready?
+      writeToTerminal("\x1b[33mInstallation stopped.\x1b[0m\r\n");
+    }
+  }, []);
 
   const boot = useCallback(async () => {
     if (isBootingRef.current || instance) return instance;
@@ -219,6 +340,20 @@ export function useWebContainer(
           isMountingRef.current = true;
 
           setState("mounting");
+          
+          // Clear current project directory if it's a fresh mount
+          try {
+            // We use /project instead of /home/project if we want to be safe, 
+            // but the current structure has home/project. 
+            // Better to just rm -rf existing contents if possible.
+            const ls = await wc.fs.readdir("home/project").catch(() => []);
+            for (const item of ls) {
+              await wc.fs.rm(`home/project/${item}`, { recursive: true }).catch(() => {});
+            }
+          } catch (e) {
+            // Likely directory doesn't exist yet, ignore
+          }
+
           writeToTerminal("\x1b[33mMounting fresh project...\x1b[0m\r\n");
 
           const tree = transformToWebContainerTree(finalFiles);
@@ -264,43 +399,10 @@ export function useWebContainer(
           dependenciesChanged ||
           (!isStartedRef.current && finalFiles["package.json"])
         ) {
-          if (isInstallingRef.current) return;
-          isInstallingRef.current = true;
-
-          setState("installing");
-          writeToTerminal(
-            "\x1b[33mRunning npm install to sync dependencies...\x1b[0m\r\n"
-          );
-          const installProcess = await wc.spawn("npm", ["install"], {
-            cwd: "/home/project",
-          });
-
-          installProcess.output.pipeTo(
-            new WritableStream({
-              write: (data) => writeToTerminal(data),
-            })
-          );
-
-          const installExitCode = await installProcess.exit;
-          isInstallingRef.current = false;
-
-          if (installExitCode !== 0) {
-            writeToTerminal(
-              "\x1b[31mDependency installation failed.\x1b[0m\r\n"
-            );
-            isStartedRef.current = false;
-            throw new Error("Failed to install dependencies");
-          }
-          writeToTerminal("\x1b[32mDependencies synced.\x1b[0m\r\n");
-
-          await startDevServer(wc);
-        } else if (filesUpdated && isStartedRef.current) {
-          // If files updated but dependencies didn't, just mount (already done above) and restart server
-          writeToTerminal(
-            "\x1b[34m[Vibe] No dependency changes, fast restarting server...\x1b[0m\r\n"
-          );
+          await runInstall(wc);
           await startDevServer(wc);
         }
+        // No else if (filesUpdated && isStartedRef.current) block - let HMR handle it!
       } catch (err: any) {
         isInstallingRef.current = false;
         isMountingRef.current = false;
@@ -309,14 +411,29 @@ export function useWebContainer(
         writeToTerminal(`\x1b[31mError: ${err.message}\x1b[0m\r\n`);
       }
     },
-    []
+    [startDevServer]
   );
+
 
   // Handle initial boot
   useEffect(() => {
     if (files && Object.keys(files).length > 0 && !instance && !isBootingRef.current) {
       boot();
     }
+    
+    // Cleanup on unmount
+    return () => {
+      if (devProcessRef.current) {
+        console.log("[WebContainer] Hook unmounting, killing dev process...");
+        devProcessRef.current.kill();
+        devProcessRef.current = null;
+      }
+      if (installProcessRef.current) {
+        console.log("[WebContainer] Hook unmounting, killing install process...");
+        installProcessRef.current.kill();
+        installProcessRef.current = null;
+      }
+    };
   }, [files, instance, boot]);
 
   useEffect(() => {
@@ -362,5 +479,17 @@ export function useWebContainer(
     return () => window.removeEventListener("vibe-force-ready", handleForceReady);
   }, [state, instance]);
 
-  return { instance, state, url, setUrl, port, setPort, error };
+  return { 
+    instance, 
+    state, 
+    url, 
+    setUrl, 
+    port, 
+    setPort, 
+    error, 
+    startDevServer, 
+    stopDevServer, 
+    runInstall, 
+    stopInstall 
+  };
 }

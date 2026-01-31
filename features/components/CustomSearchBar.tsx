@@ -11,6 +11,12 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { AnimatePresence, motion } from "motion/react";
 
 interface CustomSearchBarProps {
@@ -182,19 +188,25 @@ export const CustomSearchBar: React.FC<CustomSearchBarProps> = ({
       <div className="flex items-center shrink-0 h-full pl-3 pr-2 border-r border-border/40">
         <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
           <PopoverTrigger asChild>
-            <button
-              disabled={disabled}
-              className="flex items-center gap-2.5 px-2 py-1.5 rounded-md transition-all hover:bg-muted/60 active:bg-muted group/port cursor-pointer disabled:cursor-not-allowed disabled:hover:bg-transparent"
-              title="Click to change port"
-            >
-              <div className="relative flex items-center justify-center">
-                <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-sm" />
-                <div className="absolute inset-0 w-2 h-2 rounded-full bg-emerald-400 animate-ping opacity-30" />
-              </div>
-              <span className="text-xs font-semibold tracking-wide text-muted-foreground transition-colors group-hover/port:text-foreground">
-                :{port}
-              </span>
-            </button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  disabled={disabled}
+                  className="flex items-center gap-2.5 px-2 py-1.5 rounded-md transition-all hover:bg-muted/60 active:bg-muted group/port cursor-pointer disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                >
+                  <div className="relative flex items-center justify-center">
+                    <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-sm" />
+                    <div className="absolute inset-0 w-2 h-2 rounded-full bg-emerald-400 animate-ping opacity-30" />
+                  </div>
+                  <span className="text-xs font-semibold tracking-wide text-muted-foreground transition-colors group-hover/port:text-foreground">
+                    :{port}
+                  </span>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p>Change Port</p>
+              </TooltipContent>
+            </Tooltip>
           </PopoverTrigger>
           <PopoverContent className="w-56 p-4" align="start" sideOffset={12}>
             <form onSubmit={handlePortSubmit} className="space-y-3">
@@ -330,42 +342,60 @@ export const CustomSearchBar: React.FC<CustomSearchBarProps> = ({
       {/* Right Area: Action Buttons */}
       <div className="flex items-center gap-1 pr-2 shrink-0 h-full border-l border-border/40 pl-2">
         {onRefresh && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onRefresh}
-            disabled={disabled}
-            className="h-8 w-8 text-muted-foreground/60 hover:text-foreground hover:bg-muted/60 transition-all rounded-md"
-            title="Refresh preview"
-          >
-            <RotateCcw className="h-3.5 w-3.5" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onRefresh}
+                disabled={disabled}
+                className="h-8 w-8 text-muted-foreground/60 hover:text-foreground hover:bg-muted/60 transition-all rounded-md"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              <p>Refresh Preview</p>
+            </TooltipContent>
+          </Tooltip>
         )}
 
         {onExternalLink && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onExternalLink}
-            disabled={disabled}
-            className="h-8 w-8 text-muted-foreground/60 hover:text-foreground hover:bg-muted/60 transition-all rounded-md"
-            title="Open in new tab"
-          >
-            <ExternalLink className="h-4 w-4" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onExternalLink}
+                disabled={disabled}
+                className="h-8 w-8 text-muted-foreground/60 hover:text-foreground hover:bg-muted/60 transition-all rounded-md"
+              >
+                <ExternalLink className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              <p>Open in New Tab</p>
+            </TooltipContent>
+          </Tooltip>
         )}
 
         {onToggleResponsive && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onToggleResponsive}
-            disabled={disabled}
-            className="h-8 w-8 text-muted-foreground/60 hover:text-foreground hover:bg-muted/60 transition-all rounded-md"
-            title="Toggle responsive mode"
-          >
-            {responsiveIcon}
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onToggleResponsive}
+                disabled={disabled}
+                className="h-8 w-8 text-muted-foreground/60 hover:text-foreground hover:bg-muted/60 transition-all rounded-md"
+              >
+                {responsiveIcon}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top">
+               <p>Responsive Mode</p>
+            </TooltipContent>
+          </Tooltip>
         )}
       </div>
     </div>

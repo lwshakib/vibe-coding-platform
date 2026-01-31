@@ -1,6 +1,6 @@
 "use client";
 
-import { ModeToggle } from "@/components/mode-toggle";
+import { UserMenu } from "@/components/user-menu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -126,7 +126,7 @@ const RightSideView: React.FC = () => {
   return (
     <div className="w-full h-full flex items-center justify-center">
       <div className="w-full h-full rounded-xl flex flex-col overflow-hidden">
-        <header className="h-14 flex items-center justify-between shrink-0 gap-4 mr-4">
+        <header className="sticky top-0 z-20 h-14 flex items-center justify-between shrink-0 gap-4 px-4 bg-background/50 backdrop-blur-md border-b border-border/5 transition-all">
           <div className="flex items-center gap-4 flex-1">
             <CustomTabs activeTab={activeTab} onTabChange={setActiveTab} />
 
@@ -321,7 +321,7 @@ const RightSideView: React.FC = () => {
             </Dialog>
 
             <div className="pl-2 border-l border-border h-8 flex items-center">
-              <ModeToggle />
+              <UserMenu />
             </div>
           </div>
         </header>

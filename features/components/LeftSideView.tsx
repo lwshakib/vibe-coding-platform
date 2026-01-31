@@ -99,7 +99,7 @@ const LeftSideView: React.FC = () => {
   return (
     <div className="flex flex-col w-full h-full bg-background overflow-hidden border-r border-border/40 font-inter">
       {/* Header with Project Name */}
-      <header className="h-14 px-4 flex items-center shrink-0 border-b border-border/10 bg-background/50 backdrop-blur-md z-10 transition-all">
+      <header className="sticky top-0 z-20 h-14 px-4 flex items-center shrink-0 border-b border-border/10 bg-background/80 backdrop-blur-md transition-all">
         <div className="flex items-center gap-2">
           <Button
             variant="ghost"

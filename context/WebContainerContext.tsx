@@ -14,6 +14,7 @@ interface WebContainerContextType {
     | "installing"
     | "starting"
     | "ready"
+    | "stopped"
     | "error";
   url: string | null;
   port: number | null;
@@ -22,6 +23,10 @@ interface WebContainerContextType {
   terminalRef: React.MutableRefObject<Terminal | null>;
   setPort: (port: number | null) => void;
   setUrl: (url: string | null) => void;
+  startDevServer: (wc: WebContainer) => Promise<void>;
+  stopDevServer: () => Promise<void>;
+  runInstall: (wc: WebContainer) => Promise<void>;
+  stopInstall: () => Promise<void>;
 }
 
 const WebContainerContext = createContext<WebContainerContextType | undefined>(
@@ -34,7 +39,8 @@ export function WebContainerProvider({ children }: { children: ReactNode }) {
   const wc = useWebContainer(
     currentWorkspace?.files || null,
     terminalRef,
-    streamingStatus === "streaming"
+    streamingStatus === "streaming",
+    currentWorkspace?.id
   );
 
   return (

@@ -4,20 +4,14 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { authClient } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserMenu } from "@/components/user-menu";
 
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/logo";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import { useWorkspaceStore, Workspace } from "@/context";
 import {
   Dialog,
@@ -28,8 +22,17 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowLeft, ArrowRight, ChevronRight, RefreshCw, Sparkles } from "lucide-react";
+import { uniqueNamesGenerator, adjectives, animals } from "unique-names-generator";
 import { cn } from "@/lib/utils";
 import { AppType } from "@/generated/prisma/enums";
 import {
@@ -73,21 +76,32 @@ const generateGradientThumbnail = () => {
 };
 
 const WorkspacesSkeleton = () => (
-  <div className="grid grid-cols-2 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
-    {[...Array(10)].map((_, idx) => (
-      <div key={idx} className="flex flex-col gap-2">
-        <div className="group block w-full aspect-square rounded-3xl bg-card border border-border p-px text-left">
-          <div className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-[1.3rem] bg-card">
-            <Skeleton className="absolute inset-0 h-full w-full bg-muted/50" />
-            <Skeleton className="relative size-12 rounded-full bg-muted" />
-          </div>
-        </div>
-        <div className="px-1 text-[11px] text-muted-foreground space-y-1">
-          <Skeleton className="h-4 w-24 bg-muted" />
-          <Skeleton className="h-3 w-28 bg-muted/80" />
-        </div>
-      </div>
-    ))}
+  <div className="w-full">
+    <Table className="border-collapse">
+      <TableHeader>
+        <TableRow className="border-t border-b border-border/10">
+          <TableHead className="w-[45%] pl-4">Project</TableHead>
+          <TableHead>Stack</TableHead>
+          <TableHead>Updated</TableHead>
+          <TableHead className="text-right pr-4"></TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {[...Array(5)].map((_, idx) => (
+          <TableRow key={idx} className="h-16 border-b border-border/10">
+            <TableCell className="pl-4">
+              <div className="flex items-center gap-3">
+                <Skeleton className="size-10 rounded-lg bg-muted/50" />
+                <Skeleton className="h-4 w-32 bg-muted/50" />
+              </div>
+            </TableCell>
+            <TableCell><Skeleton className="h-4 w-20 bg-muted/50" /></TableCell>
+            <TableCell><Skeleton className="h-4 w-24 bg-muted/50" /></TableCell>
+            <TableCell className="pr-4"><div className="flex justify-end"><Skeleton className="size-8 rounded-full bg-muted/50" /></div></TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
   </div>
 );
 
@@ -101,8 +115,21 @@ export default function WorkspacesPage() {
   const [appType, setAppType] = useState<AppType>(AppType.VITE_APP);
   const [step, setStep] = useState(0);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [suggestedNames, setSuggestedNames] = useState<string[]>([]);
   const router = useRouter();
   const { data: session } = authClient.useSession();
+
+  const generateNames = () => {
+    const names = Array.from({ length: 3 }, () => 
+      uniqueNamesGenerator({
+        dictionaries: [adjectives, animals],
+        length: 2,
+        separator: ' ',
+        style: 'capital'
+      })
+    );
+    setSuggestedNames(names);
+  };
 
   const workspaceThumbnails = useMemo(() => {
     const thumbnails = new Map<string, string>();
@@ -147,8 +174,8 @@ export default function WorkspacesPage() {
       }
       const data = await res.json();
       setWorkspaces((prev: Workspace[]) => [
-        ...prev,
         data.workspace as Workspace,
+        ...prev,
       ]);
       setCreateDialogOpen(false);
       setNewWorkspaceName("");
@@ -163,64 +190,26 @@ export default function WorkspacesPage() {
 
   useEffect(() => {
     loadWorkspaces();
+    generateNames();
   }, []);
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground w-full">
       {/* Top chrome */}
-      <header className="flex items-center justify-between px-6 pt-4 sm:px-10 lg:px-16">
+      <header className="sticky top-0 z-50 flex items-center justify-between px-6 py-4 sm:px-10 lg:px-16 bg-background/80 backdrop-blur-md border-b border-border/10">
         <div className="flex items-center gap-3">
           <Logo className="text-foreground" />
         </div>
         <div className="flex items-center gap-4 text-xs text-muted-foreground">
           <span className="hidden text-[11px] sm:inline">Limited credits</span>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage
-                    src={session?.user?.image || ""}
-                    alt={session?.user?.name || "User"}
-                  />
-                  <AvatarFallback>
-                    {session?.user?.name?.[0] || "U"}
-                  </AvatarFallback>
-                </Avatar>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56" align="end" forceMount>
-              <DropdownMenuLabel className="font-normal">
-                <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">
-                    {session?.user?.name}
-                  </p>
-                  <p className="text-xs leading-none text-muted-foreground">
-                    {session?.user?.email}
-                  </p>
-                </div>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="cursor-pointer text-red-600 focus:text-red-600"
-                onClick={async () => {
-                  await authClient.signOut({
-                    fetchOptions: {
-                      onSuccess: () => {
-                        router.push("/sign-in");
-                      },
-                    },
-                  });
-                }}
-              >
-                Log out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <UserMenu />
           <Dialog
             open={createDialogOpen}
             onOpenChange={(open) => {
               setCreateDialogOpen(open);
-              if (!open) {
+              if (open) {
+                generateNames();
+              } else {
                 setStep(0);
                 setNewWorkspaceName("");
                 setCreateError(null);
@@ -267,25 +256,61 @@ export default function WorkspacesPage() {
                       transition={{ duration: 0.2 }}
                       className="space-y-4 pt-2"
                     >
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium text-foreground">
-                          Workspace name
-                        </label>
-                        <Input
-                          autoFocus
-                          value={newWorkspaceName}
-                          onChange={(e) => {
-                            setNewWorkspaceName(e.target.value);
-                            if (createError) setCreateError(null);
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" && newWorkspaceName.trim()) {
-                              setStep(1);
-                            }
-                          }}
-                          placeholder="e.g. My Awesome Project"
-                          className="bg-background border-input text-foreground placeholder:text-muted-foreground h-11"
-                        />
+                      <div className="space-y-4">
+                        <div className="space-y-3">
+                          <label className="text-sm font-semibold text-foreground/80 flex items-center gap-2">
+                            Workspace name
+                          </label>
+                          <Input
+                            autoFocus
+                            value={newWorkspaceName}
+                            onChange={(e) => {
+                              setNewWorkspaceName(e.target.value);
+                              if (createError) setCreateError(null);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && newWorkspaceName.trim()) {
+                                setStep(1);
+                              }
+                            }}
+                            placeholder="e.g. My Awesome Project"
+                            className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground/50 h-12 rounded-xl focus:ring-primary/20"
+                          />
+                        </div>
+
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                             <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/60 flex items-center gap-1.5">
+                               <Sparkles className="size-3 text-primary" />
+                               Magic Suggestions
+                             </div>
+                             <button
+                               onClick={generateNames}
+                               className="text-[10px] font-bold uppercase tracking-wider text-primary hover:text-primary/80 transition-colors flex items-center gap-1.5"
+                             >
+                               <RefreshCw className="size-3" />
+                               Refresh
+                             </button>
+                          </div>
+                          
+                          <div className="flex flex-wrap gap-2">
+                            {suggestedNames.map((name, i) => (
+                              <button
+                                key={i}
+                                onClick={() => setNewWorkspaceName(name)}
+                                className={cn(
+                                  "px-3 py-1.5 rounded-full text-xs font-medium border transition-all duration-200",
+                                  newWorkspaceName === name 
+                                    ? "bg-primary/10 border-primary text-primary" 
+                                    : "bg-muted/30 border-border/50 text-muted-foreground hover:border-primary/30 hover:bg-muted/50"
+                                )}
+                              >
+                                {name}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
                         {createError ? (
                           <p className="text-xs text-red-400 font-medium">
                             {createError}
@@ -413,63 +438,77 @@ export default function WorkspacesPage() {
           {loading ? (
             <WorkspacesSkeleton />
           ) : (
-            <div className="grid grid-cols-2 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+            <div className="w-full">
               {workspaces.length === 0 ? (
-                <div className="col-span-full text-muted-foreground text-sm">
-                  No workspaces yet. Create one to get started.
+                <div className="text-center py-24 bg-muted/20 rounded-2xl border border-dashed border-border">
+                  <div className="inline-flex size-14 items-center justify-center rounded-2xl bg-muted mb-4">
+                    <Logo className="opacity-20 grayscale" />
+                  </div>
+                  <h3 className="text-sm font-semibold text-foreground">No projects yet</h3>
+                  <p className="text-xs text-muted-foreground mt-1 px-10">
+                    Get started by creating your first workspace.
+                  </p>
                 </div>
               ) : (
-                workspaces.map((workspace: Workspace) => {
-                  const thumbnail = workspaceThumbnails.get(workspace.id);
-                  return (
-                    <div key={workspace.id} className="flex flex-col gap-2">
-                      <Link
-                        href={`/workspaces/${workspace.id}`}
-                        className="group block w-full aspect-square rounded-3xl bg-card border border-border p-px text-left transition-transform duration-200 hover:-translate-y-1"
-                      >
-                        <div className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-[1.3rem] bg-card">
-                          {thumbnail ? (
-                            <img
-                              src={thumbnail}
-                              alt={`${workspace.name} thumbnail`}
-                              className="absolute inset-0 h-full w-full object-cover"
-                            />
-                          ) : null}
-                          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,rgba(255,255,255,0.2),transparent_55%)] opacity-80" />
-                          <div className="relative flex items-center justify-center">
-                            <div className="flex size-11 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform duration-300 group-hover:scale-110">
-                              {(() => {
-                                const template = getTemplateByType(
-                                  workspace.app_type
-                                );
-                                return (
+                <Table className="border-collapse">
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent border-t border-b border-border/10">
+                      <TableHead className="w-[45%] pl-4 text-[11px] uppercase tracking-wider font-bold text-muted-foreground/60">Project</TableHead>
+                      <TableHead className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground/60">Stack</TableHead>
+                      <TableHead className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground/60">Last Updated</TableHead>
+                      <TableHead className="text-right pr-4"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {[...workspaces]
+                      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+                      .map((workspace: Workspace) => {
+                        const template = getTemplateByType(workspace.app_type);
+                        return (
+                          <TableRow 
+                            key={workspace.id} 
+                            className="group cursor-pointer h-16 transition-colors hover:bg-muted/30 border-b border-border/10"
+                            onClick={() => router.push(`/workspaces/${workspace.id}`)}
+                          >
+                            <TableCell className="pl-4 font-medium">
+                              <div className="flex items-center gap-3">
+                                <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 transition-transform group-hover:scale-105">
                                   <img
                                     src={template?.logo || "/logos/react.svg"}
                                     alt={template?.label || "Workspace"}
-                                    className={cn(
-                                      "size-6",
-                                      template?.logoStyling
-                                    )}
+                                    className={cn("size-5", template?.logoStyling)}
                                   />
-                                );
-                              })()}
-                            </div>
-                          </div>
-                        </div>
-                      </Link>
-
-                      <div className="px-1 text-[11px] text-muted-foreground">
-                        <div className="font-medium text-foreground">
-                          {workspace.name}
-                        </div>
-                        <div className="mt-0.5 text-[10px] text-muted-foreground/60">
-                          Updated{" "}
-                          {new Date(workspace.updatedAt).toLocaleString()}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
+                                </div>
+                                <span className="truncate max-w-[200px] md:max-w-xs">{workspace.name}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="secondary" className="text-[9px] uppercase tracking-wider font-extrabold bg-primary/5 text-primary border-none px-2 pr-2.5">
+                                {template?.label || "Vite"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                              {new Date(workspace.updatedAt).toLocaleDateString(undefined, {
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </TableCell>
+                            <TableCell className="text-right pr-4">
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-all hover:bg-primary/10 hover:text-primary"
+                              >
+                                <ChevronRight className="size-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                  </TableBody>
+                </Table>
               )}
             </div>
           )}

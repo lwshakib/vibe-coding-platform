@@ -49,7 +49,7 @@ export default function WorkspacePage() {
 
   if (error) {
     return (
-      <div className="w-full h-screen flex items-center justify-center text-white bg-background">
+      <div className="w-full h-screen flex items-center justify-center text-foreground bg-background">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-2">Error</h1>
           <p className="text-muted-foreground">{error}</p>
@@ -60,7 +60,7 @@ export default function WorkspacePage() {
 
   return (
     <WebContainerProvider>
-      <div className="w-full h-screen relative flex text-white overflow-hidden">
+      <div className="w-full h-screen relative flex text-foreground overflow-hidden">
         {/* Left Side: Chat & File Tree */}
         <div className="w-full md:w-112.5 shrink-0">
           <div className="h-full w-full overflow-hidden">
