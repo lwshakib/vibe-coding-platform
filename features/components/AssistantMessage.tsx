@@ -30,39 +30,11 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
   //   console.log("Parsed Content:", parsedContent);
   // }, [parsedContent]);
 
-  useEffect(() => {
-    // Only sync if not streaming and we actually have files
-    if (
-      !isStreaming &&
-      parsedContent.files.files &&
-      Object.keys(parsedContent.files.files).length > 0
-    ) {
-      const mergeFiles = (current: any, incoming: any) => {
-        const result = { ...current };
-        for (const key in incoming) {
-          if (incoming[key].directory) {
-            result[key] = {
-              directory: mergeFiles(
-                current[key]?.directory || {},
-                incoming[key].directory
-              ),
-            };
-          } else {
-            result[key] = incoming[key];
-          }
-        }
-        return result;
-      };
-
-      if (currentWorkspace) {
-        const newFiles = mergeFiles(
-          currentWorkspace.files || {},
-          parsedContent.files.files
-        );
-        updateFiles(newFiles, true);
-      }
-    }
-  }, [isStreaming, parsedContent.files.files, currentWorkspace]);
+  /* 
+   * REMOVED: Redundant file sync logic that caused infinite loops.
+   * File updates are handled by LeftSideView (for the streaming message)
+   * and persisted to the DB (for history).
+   */
 
   const hasProcessingFiles = parsedContent.progress.files.some(
     (file) => file.status === "PROCESSING"
@@ -144,11 +116,16 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
                                   )}
                                   <span className="text-muted-foreground font-mono truncate text-[11px] group-hover/file:text-foreground transition-colors">
                                     {file.fullPath}
+                                    {(file as any).startLine && (file as any).endLine && (
+                                      <span className="ml-2 text-[10px] text-muted-foreground/60">
+                                        (Lv. {(file as any).startLine}-{(file as any).endLine})
+                                      </span>
+                                    )}
                                   </span>
                                 </div>
                                 {file.status !== "COMPLETED" && (
                                   <span className="text-[10px] text-primary/70 font-medium animate-pulse shrink-0 ml-4">
-                                    Writing...
+                                    {(file as any).startLine ? "Patching..." : "Writing..."}
                                   </span>
                                 )}
                               </div>

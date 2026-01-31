@@ -17,7 +17,7 @@ export interface ParsedVibeArtifact {
   files: {
     title: string;
     files: Record<string, FileNode>;
-    flatFiles: Record<string, { content: string }>;
+    flatFiles: Record<string, { content: string; startLine?: number; endLine?: number }>;
   };
   progress: {
     files: FileProgress[];
@@ -75,12 +75,14 @@ export function parseVibeArtifact(input: string): ParsedVibeArtifact {
 
   // Regex to match vibeAction blocks
   const fileRegex =
-    /<vibeAction[^>]*filePath="([^"]+)"[^>]*>([\s\S]*?)(?=<vibeAction|<\/vibeAction>|$)/g;
+    /<vibeAction[^>]*filePath="([^"]+)"(?:[^>]*startLine="(\d+)")?(?:[^>]*endLine="(\d+)")?[^>]*>([\s\S]*?)(?=<vibeAction|<\/vibeAction>|$)/g;
   let match: RegExpExecArray | null;
 
   while ((match = fileRegex.exec(input)) !== null) {
     const filePath = match[1];
-    let fileContent = match[2];
+    const startLine = match[2] ? parseInt(match[2], 10) : undefined;
+    const endLine = match[3] ? parseInt(match[3], 10) : undefined;
+    let fileContent = match[4];
 
     const fileStartIndex = match.index;
     const fileEndIndex = fileStartIndex + match[0].length;
@@ -92,13 +94,19 @@ export function parseVibeArtifact(input: string): ParsedVibeArtifact {
     fileProgressMap.set(filePath, {
       fullPath: filePath,
       status: isComplete ? "COMPLETED" : "PROCESSING",
-    });
+      startLine,
+      endLine,
+    } as any);
 
     // Clean up content (remove trailing incomplete tags)
     fileContent = fileContent.replace(/<[^>]*$/, "").trim();
 
     // Add to flatFiles
-    result.files.flatFiles[filePath] = { content: fileContent };
+    result.files.flatFiles[filePath] = { 
+      content: fileContent,
+      startLine,
+      endLine
+    };
 
     const parts = filePath.split("/");
     let current: Record<string, FileNode> = result.files.files;

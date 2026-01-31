@@ -60,8 +60,44 @@ const LeftSideView: React.FC = () => {
 
         if (artifactFiles && Object.keys(artifactFiles).length > 0) {
           const currentFiles = currentWorkspace?.files || {};
-          const mergedFiles = { ...currentFiles, ...artifactFiles };
-          updateFiles(mergedFiles);
+          const mergedFiles = { ...currentFiles };
+
+          let hasChanges = false;
+
+          Object.entries(artifactFiles).forEach(([path, fileData]: [string, any]) => {
+            const originalContent = currentFiles[path]?.content || "";
+            let newContent = originalContent;
+
+            if (fileData.startLine && fileData.endLine) {
+              // Apply patch
+              const lines = originalContent.split("\n");
+              // Parse as integers to ensure valid numbers
+              const startVal = parseInt(String(fileData.startLine), 10);
+              const endVal = parseInt(String(fileData.endLine), 10);
+              
+              const start = startVal - 1;
+              const deleteCount = endVal - startVal + 1;
+              
+              if (!isNaN(start) && !isNaN(deleteCount) && start >= 0) {
+                 const newLines = fileData.content.split("\n");
+                 lines.splice(start, deleteCount, ...newLines);
+                 newContent = lines.join("\n");
+              }
+            } else {
+              // Full replace/Create
+              newContent = fileData.content;
+            }
+
+            // Only update if content actually changed
+            if (newContent !== originalContent) {
+              mergedFiles[path] = { content: newContent };
+              hasChanges = true;
+            }
+          });
+
+          if (hasChanges) {
+             updateFiles(mergedFiles);
+          }
         }
       }
     }
