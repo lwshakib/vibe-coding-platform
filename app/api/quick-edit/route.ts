@@ -1,5 +1,5 @@
 import { GeminiModel } from "@/llm/model";
-import { streamText } from "ai";
+import { stepCountIs, streamText } from "ai";
 import axios from "axios";
 import { z } from "zod";
 
@@ -72,7 +72,8 @@ export async function POST(req: Request) {
         },
       },
     },
-    maxSteps: 5,
+    toolChoice:'auto',
+    stopWhen: stepCountIs(5), 
   });
 
   return result.toTextStreamResponse();
