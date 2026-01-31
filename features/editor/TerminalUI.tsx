@@ -142,14 +142,17 @@ export default function TerminalUI() {
       xtermsRef.current[tabId] = term;
       fitAddonsRef.current[tabId] = fitAddon;
 
-      term.writeln("\x1b[32mWelcome to Vibe Terminal\x1b[0m");
-
+      // Fit immediately and also after a micro-task to ensure DOM has settled
+      try {
+        fitAddon.fit();
+      } catch (e) {}
+      
       const timer = setTimeout(() => {
         if (fitAddonsRef.current[tabId]) {
           fitAddonsRef.current[tabId].fit();
           xtermsRef.current[tabId]?.scrollToBottom();
         }
-      }, 200);
+      }, 0);
 
       const resizeObserver = new ResizeObserver(() => {
         if (fitAddonsRef.current[tabId]) {
@@ -221,16 +224,16 @@ export default function TerminalUI() {
     
     if (!container || !fitAddon) return;
 
-    // Initial fit with slight delay for DOM to settle
+    // Initial fit with minimal delay
     const timer = setTimeout(() => {
       try {
         fitAddon.fit();
         term.scrollToBottom();
         term.focus();
       } catch (e) {
-        console.warn("Terminal fit failed", e);
+        // console.warn("Terminal fit failed", e);
       }
-    }, 200);
+    }, 0);
 
     // Robust ResizeObserver for element-specific sizing
     const resizeObserver = new ResizeObserver(() => {
@@ -248,68 +251,68 @@ export default function TerminalUI() {
     };
   }, [activeTabId, tabs.length]); // Re-run if tabs change or active tab shifts
 
+  const spawningRef = useRef<Record<string, boolean>>({});
+
   // Handle shell interaction for each terminal
   useEffect(() => {
     if (!instance || ["idle", "booting", "mounting"].includes(state)) return;
 
     tabs.forEach(async (tab) => {
       const term = xtermsRef.current[tab.id];
-      const fitAddon = fitAddonsRef.current[tab.id];
-      if (!term || shellProcessesRef.current[tab.id]) return;
+      if (!term || shellProcessesRef.current[tab.id] || spawningRef.current[tab.id]) return;
 
-      fitAddon?.fit();
+      spawningRef.current[tab.id] = true;
 
-      const shellProcess = await instance.spawn("jsh", {
-        terminal: {
-          cols: term.cols || 80,
-          rows: term.rows || 24,
-        },
-        cwd: "/project",
-        env: {
-          HOME: "/project",
-          PS1: "\x1b[32m[project]\x1b[0m $ ",
-        },
-      });
+      try {
+        // Make sure terminal is fitted before spawning so jsh knows the size
+        const fitAddon = fitAddonsRef.current[tab.id];
+        if (fitAddon) {
+          try { fitAddon.fit(); } catch (e) {}
+        }
 
-      shellProcess.output.pipeTo(
-        new WritableStream({
-          write(data: string | Uint8Array) {
-            term.write(data);
-            
-            // Expo QR Code detection (only on Vibe terminal)
-            if (tab.id === "1") {
-              const output = typeof data === "string" 
-                ? data 
-                : new TextDecoder().decode(data);
-              const expoLinkRegex = /(exp:\/\/[^\s\x1b\x07]+|https:\/\/qr\.expo\.dev\/[^\s\x1b\x07]+)/g;
-              const matches = output.match(expoLinkRegex);
-              if (matches && matches.length > 0) {
-                const cleanUrl = matches[matches.length - 1]
-                  .replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-m]/g, "")
-                  .replace(/[\x00-\x1F\x7F-\x9F]/g, "")
-                  .trim();
-                if (cleanUrl) setExpoQRData(cleanUrl);
+        const shellProcess = await instance.spawn("jsh", [], {
+          cwd: "/"
+        });
+
+        // Feed shell output to terminal
+        shellProcess.output.pipeTo( 
+          new WritableStream({
+            write(data) {
+              term.write(data);
+                
+              // Expo QR Code detection (only on Vibe terminal)
+              if (tab.id === "1") {
+                const output = typeof data === "string" 
+                  ? data 
+                  : new TextDecoder().decode(data);
+                const expoLinkRegex = /(exp:\/\/[^\s\x1b\x07]+|https:\/\/qr\.expo\.dev\/[^\s\x1b\x07]+)/g;
+                const matches = output.match(expoLinkRegex);
+                if (matches && matches.length > 0) {
+                  const cleanUrl = matches[matches.length - 1]
+                    .replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-m]/g, "")
+                    .replace(/[\x00-\x1F\x7F-\x9F]/g, "")
+                    .trim();
+                  if (cleanUrl) setExpoQRData(cleanUrl);
+                }
               }
-            }
-          },
-        })
-      );
+            },
+          })
+        );
 
-      const input = shellProcess.input.getWriter();
-      const onData = term.onData((data: string) => {
-        input.write(data);
-      });
+        const input = shellProcess.input.getWriter();
+        const onData = term.onData((data: string) => {
+          input.write(data);
+        });
 
-      const onResize = term.onResize(({ cols, rows }: { cols: number, rows: number }) => {
-        shellProcess.resize({ cols, rows });
-      });
+        const onResize = term.onResize(({ cols, rows }: { cols: number, rows: number }) => {
+          shellProcess.resize({ cols, rows });
+        });
 
-      shellProcessesRef.current[tab.id] = { process: shellProcess, onData, onResize };
-
-      // ONLY send initial enter to the Vibe terminal to kickstart logs/prompt
-      // Sending it to all terminals causes annoying double prompts in the UI
-      if (tab.id === "1") {
-        input.write("\r");
+        shellProcessesRef.current[tab.id] = { process: shellProcess, onData, onResize };
+      } catch (err) {
+        console.error("Failed to spawn shell for tab", tab.id, err);
+      } finally {
+        delete spawningRef.current[tab.id];
       }
     });
   }, [instance, state, tabs, setExpoQRData]);
@@ -402,8 +405,8 @@ export default function TerminalUI() {
                 className={cn(
                   "flex items-center gap-2 px-3 py-1 h-7 text-xs font-medium rounded-md transition-all whitespace-nowrap",
                   activeTabId === tab.id 
-                    ? "bg-background text-foreground shadow-sm border border-border" 
-                    : "text-muted-foreground hover:bg-background/50"
+                    ? "bg-background text-foreground" 
+                    : "text-muted-foreground hover:bg-background/40"
                 )}
               >
                 <TerminalIcon className="w-3 h-3" />

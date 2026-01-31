@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { getWebContainerInstance } from "@/lib/webcontainer";
 import type { WebContainer, FileSystemTree, WebContainerProcess } from "@webcontainer/api";
-import type { Terminal } from "xterm";
+import type { Terminal } from "xterm"; // Type-only import
 import { useWorkspaceStore } from "@/context";
 
 type WebContainerState =
@@ -41,7 +41,6 @@ export function useWebContainer(
   const writeToTerminal = useCallback((data: string) => {
     const formattedData = data.replace(/\n/g, "\r\n");
     if (terminalRef?.current) {
-      // Flush buffer if any
       if (logBufferRef.current.length > 0) {
         terminalRef.current.write(logBufferRef.current.join(""));
         logBufferRef.current = [];
@@ -52,7 +51,6 @@ export function useWebContainer(
     }
   }, [terminalRef]);
 
-  // Flush buffer when terminal becomes available
   useEffect(() => {
     const interval = setInterval(() => {
       if (terminalRef?.current && logBufferRef.current.length > 0) {
@@ -64,12 +62,8 @@ export function useWebContainer(
     return () => clearInterval(interval);
   }, [terminalRef]);
 
-  // Handle Workspace Switch
   useEffect(() => {
     if (workspaceId && prevWorkspaceIdRef.current && workspaceId !== prevWorkspaceIdRef.current) {
-      console.log(`[WebContainer] Workspace changed from ${prevWorkspaceIdRef.current} to ${workspaceId}, resetting...`);
-      
-      // Kill existing processes if any
       if (devProcessRef.current) {
         devProcessRef.current.kill();
         devProcessRef.current = null;
@@ -78,8 +72,6 @@ export function useWebContainer(
         installProcessRef.current.kill();
         installProcessRef.current = null;
       }
-      
-      // Reset local state
       mountedFilesRef.current = {};
       isStartedRef.current = false;
       isInstallingRef.current = false;
@@ -87,8 +79,6 @@ export function useWebContainer(
       setState("idle");
       setUrl(null);
       setPort(null);
-      
-      // Clear terminal
       if (terminalRef?.current) {
         terminalRef.current.clear();
         terminalRef.current.write("\x1b[33mWorkspace changed, resetting environment...\x1b[0m\r\n");
@@ -101,65 +91,41 @@ export function useWebContainer(
     files: Record<string, { content: string }>
   ): FileSystemTree => {
     const tree: FileSystemTree = {};
-
     Object.entries(files).forEach(([path, { content }]) => {
       const parts = path.split("/");
       let current = tree;
-
       parts.forEach((part, index) => {
         const isFile = index === parts.length - 1;
-
         if (isFile) {
-          current[part] = {
-            file: {
-              contents: content,
-            },
-          };
+          current[part] = { file: { contents: content } };
         } else {
           if (!current[part] || (current[part] as any).file) {
-            current[part] = {
-              directory: {},
-            };
+            current[part] = { directory: {} };
           }
           current = (current[part] as any).directory;
         }
       });
     });
-
     return tree;
   };
 
-  const inputWriterRef = useRef<WritableStreamDefaultWriter<string> | null>(null);
-
   const startDevServer = useCallback(async (wc: WebContainer) => {
     setState((prev) => (prev === "ready" ? "ready" : "starting"));
-
     if (devProcessRef.current) {
-      writeToTerminal("\x1b[33mFinishing existing dev server process...\x1b[0m\r\n");
       devProcessRef.current.kill();
-      
       try {
-        // Wait for the process to actually exit to ensure port is freed
-        // Use a timeout to prevent hanging if the process is stubborn
         await Promise.race([
           devProcessRef.current.exit,
           new Promise(resolve => setTimeout(resolve, 2000))
         ]);
-      } catch (e) {
-        console.warn("[WebContainer] Error waiting for process exit:", e);
-      }
-      
+      } catch (e) {}
       devProcessRef.current = null;
-      writeToTerminal("\x1b[33mRestarting dev server...\x1b[0m\r\n");
-    } else {
-      writeToTerminal("\x1b[33mStarting dev server...\x1b[0m\r\n");
     }
-
-    // Small delay to ensure the OS/WebContainer has fully released the port
-    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    await new Promise(resolve => setTimeout(resolve, 100));
 
     const devProcess = await wc.spawn("npm", ["run", "dev"], {
-      cwd: "/project",
+      cwd: "/",
       env: { PORT: "3000" },
     });
 
@@ -167,107 +133,61 @@ export function useWebContainer(
       new WritableStream({
         write: (data) => {
           writeToTerminal(data);
-
-          // Fallback: If we're stuck in 'starting' and see port info, force ready
-          if (
-            (data.includes("Local:") ||
-              data.includes("Network:") ||
-              data.includes("ready in") ||
-              data.includes("Server started")) &&
-            !url
-          ) {
-            console.log("[WebContainer] Fallback: Server might be ready");
-          }
-
-          // Expo QR Code detection
           if (data.includes("exp://")) {
             const match = data.match(/exp:\/\/[^\s\n\x1b]+/);
             if (match) {
-              const qrUrl = match[0];
-              setExpoQRData(qrUrl);
+              setExpoQRData(match[0]);
               setShowExpoQR(true);
             }
           }
         },
       })
     );
-
     devProcessRef.current = devProcess;
-  }, [url, setExpoQRData, setShowExpoQR]);
+  }, [setExpoQRData, setShowExpoQR, writeToTerminal]);
 
   const stopDevServer = useCallback(async () => {
     if (devProcessRef.current) {
-      writeToTerminal("\x1b[33mStopping dev server...\x1b[0m\r\n");
       devProcessRef.current.kill();
-      
       try {
         await Promise.race([
           devProcessRef.current.exit,
           new Promise(resolve => setTimeout(resolve, 2000))
         ]);
-      } catch (e) {
-        console.warn("[WebContainer] Error stopping dev server:", e);
-      }
-      
+      } catch (e) {}
       devProcessRef.current = null;
       setState("stopped");
       setUrl(null);
       setPort(null);
-      writeToTerminal("\x1b[33mDev server stopped.\x1b[0m\r\n");
     }
   }, []);
 
   const runInstall = useCallback(async (wc: WebContainer) => {
     if (isInstallingRef.current) return;
     isInstallingRef.current = true;
-
     setState("installing");
-    writeToTerminal(
-      "\x1b[33mRunning npm install to sync dependencies...\x1b[0m\r\n"
-    );
-    
     try {
-      const installProcess = await wc.spawn("npm", ["install"], {
-        cwd: "/project",
-      });
+      const installProcess = await wc.spawn("npm", ["install"], { cwd: "/" });
       installProcessRef.current = installProcess;
-
-      installProcess.output.pipeTo(
-        new WritableStream({
-          write: (data) => writeToTerminal(data),
-        })
-      );
-
+      installProcess.output.pipeTo(new WritableStream({ write: (data) => writeToTerminal(data) }));
       const installExitCode = await installProcess.exit;
-      
       if (installExitCode !== 0 && installProcessRef.current) {
-        writeToTerminal(
-          "\x1b[31mDependency installation failed.\x1b[0m\r\n"
-        );
+        writeToTerminal("\x1b[31mDependency installation failed.\x1b[0m\r\n");
         isStartedRef.current = false;
         throw new Error("Failed to install dependencies");
-      }
-      
-      if (installProcessRef.current) {
-        writeToTerminal("\x1b[32mDependencies synced.\x1b[0m\r\n");
       }
     } finally {
       installProcessRef.current = null;
       isInstallingRef.current = false;
-      // After install, we usually want to start or restart the server if it was running
-      // but runInstall by itself shouldn't decide that. 
-      // We'll let the UI or mountAndRun handle the follow-up.
     }
-  }, []);
+  }, [writeToTerminal]);
 
   const stopInstall = useCallback(async () => {
     if (installProcessRef.current) {
-      writeToTerminal("\x1b[33mStopping dependency installation...\x1b[0m\r\n");
       installProcessRef.current.kill();
       installProcessRef.current = null;
       isInstallingRef.current = false;
-      setState("idle"); // or should it go back to ready if it was ready?
-      writeToTerminal("\x1b[33mInstallation stopped.\x1b[0m\r\n");
+      setState("idle");
     }
   }, []);
 
@@ -276,19 +196,14 @@ export function useWebContainer(
     isBootingRef.current = true;
     try {
       setState("booting");
-      writeToTerminal("\x1b[33mBooting WebContainer...\x1b[0m\r\n");
       const wc = await getWebContainerInstance();
-      
-      // Attach listener IMMEDIATELY after getting instance
       wc.on("server-ready", (port, url) => {
-        console.log(`[WebContainer] Server Ready: ${port} ${url}`);
         setUrl(url);
         setPort(port);
         setState("ready");
         isStartedRef.current = true;
         writeToTerminal(`\x1b[32mServer ready at ${url}\x1b[0m\r\n`);
       });
-
       setInstance(wc);
       return wc;
     } catch (err: any) {
@@ -299,145 +214,85 @@ export function useWebContainer(
     } finally {
       isBootingRef.current = false;
     }
-  }, [instance]);
+  }, [instance, writeToTerminal]);
 
   const mountAndRun = useCallback(
-    async (
-      wc: WebContainer,
-      projectFiles: Record<string, { content: string }>
-    ) => {
+    async (wc: WebContainer, projectFiles: Record<string, { content: string }>) => {
       try {
         let finalFiles = { ...projectFiles };
         let dependenciesChanged = false;
-
-        // Sanitize package.json and check for dependency changes
         if (finalFiles["package.json"]) {
           try {
             const pkg = JSON.parse(finalFiles["package.json"].content);
             let modified = false;
-
             if (pkg.scripts) {
               Object.keys(pkg.scripts).forEach((key) => {
                 if (pkg.scripts[key] && pkg.scripts[key].includes("--turbo")) {
-                  pkg.scripts[key] = pkg.scripts[key]
-                    .replace(/--turbo/g, "")
-                    .trim();
+                  pkg.scripts[key] = pkg.scripts[key].replace(/--turbo/g, "").trim();
                   modified = true;
                 }
               });
             }
-
             if (modified) {
-              finalFiles["package.json"] = {
-                content: JSON.stringify(pkg, null, 2),
-              };
-              writeToTerminal(
-                "\x1b[33mRemoved incompatible --turbo flag from package.json scripts\x1b[0m\r\n"
-              );
+              finalFiles["package.json"] = { content: JSON.stringify(pkg, null, 2) };
+              writeToTerminal("\x1b[33mRemoved incompatible --turbo flag from package.json scripts\x1b[0m\r\n");
             }
-
-            // Check if dependencies or devDependencies changed
             if (mountedFilesRef.current["package.json"]) {
               const oldPkg = JSON.parse(mountedFilesRef.current["package.json"]);
-              if (
-                JSON.stringify(oldPkg.dependencies) !==
-                  JSON.stringify(pkg.dependencies) ||
-                JSON.stringify(oldPkg.devDependencies) !==
-                  JSON.stringify(pkg.devDependencies)
-              ) {
+              if (JSON.stringify(oldPkg.dependencies) !== JSON.stringify(pkg.dependencies) ||
+                  JSON.stringify(oldPkg.devDependencies) !== JSON.stringify(pkg.devDependencies)) {
                 dependenciesChanged = true;
-                writeToTerminal(
-                  "\x1b[35m[Vibe] Dependency changes detected in package.json\x1b[0m\r\n"
-                );
               }
             }
-          } catch (e) {
-            console.error("Failed to parse package.json for processing", e);
-          }
+          } catch (e) {}
         }
 
-        let filesUpdated = false;
         if (Object.keys(mountedFilesRef.current).length === 0) {
           if (isMountingRef.current) return;
           isMountingRef.current = true;
-
           setState("mounting");
-          
-          // Clear current project directory if it's a fresh mount
           try {
-            // We use /project instead of /home/project if we want to be safe, 
-            // but the current structure has home/project. 
-            // Better to just rm -rf existing contents if possible.
-            const ls = await wc.fs.readdir("/project").catch(() => []);
+            const ls = await wc.fs.readdir("/").catch(() => []);
             for (const item of ls) {
-              await wc.fs.rm(`/project/${item}`, { recursive: true }).catch(() => {});
+              await wc.fs.rm(`/${item}`, { recursive: true }).catch(() => {});
             }
-          } catch (e) {
-            // Likely directory doesn't exist yet, ignore
-          }
-
-          writeToTerminal("\x1b[33mMounting fresh project...\x1b[0m\r\n");
+          } catch (e) {}
 
           const tree = transformToWebContainerTree(finalFiles);
-          const mountTree: FileSystemTree = {
-            project: {
-              directory: tree,
-            },
-          };
-
-          await wc.mount(mountTree);
-
-          const newRef: Record<string, string> = {};
+          await wc.mount(tree);
           Object.entries(finalFiles).forEach(([path, { content }]) => {
-            newRef[path] = content;
+            mountedFilesRef.current[path] = content;
           });
-          mountedFilesRef.current = newRef;
-          writeToTerminal("\x1b[32mFiles mounted successfully.\x1b[0m\r\n");
           isMountingRef.current = false;
-          filesUpdated = true;
         } else {
-          // Handle updates and additions
           for (const [path, { content }] of Object.entries(finalFiles)) {
             if (mountedFilesRef.current[path] !== content) {
-              const fullPath = `project/${path}`;
+              const fullPath = `/${path}`;
               const parts = fullPath.split("/");
               if (parts.length > 1) {
-                const dir = parts.slice(0, -1).join("/");
-                await wc.fs.mkdir(dir, { recursive: true });
+                await wc.fs.mkdir(parts.slice(0, -1).join("/"), { recursive: true });
               }
               await wc.fs.writeFile(fullPath, content);
               mountedFilesRef.current[path] = content;
               writeToTerminal(`\x1b[90mUpdated: ${path}\x1b[0m\r\n`);
-              filesUpdated = true;
             }
           }
-
-          // Handle deletions
           const currentMountedPaths = Object.keys(mountedFilesRef.current);
           for (const path of currentMountedPaths) {
             if (!finalFiles[path]) {
-              // Path was removed from store, remove from WebContainer
               try {
-                await wc.fs.rm(`project/${path}`, { recursive: true }).catch(() => {});
+                await wc.fs.rm(`/${path}`, { recursive: true }).catch(() => {});
                 delete mountedFilesRef.current[path];
                 writeToTerminal(`\x1b[90mDeleted: ${path}\x1b[0m\r\n`);
-                filesUpdated = true;
-              } catch (e) {
-                // Ignore if already deleted
-              }
+              } catch (e) {}
             }
           }
         }
 
-        // Handle logical flow based on changes
-        if (
-          dependenciesChanged ||
-          (!isStartedRef.current && finalFiles["package.json"])
-        ) {
+        if (dependenciesChanged || (!isStartedRef.current && finalFiles["package.json"])) {
           await runInstall(wc);
           await startDevServer(wc);
         }
-        // No else if (filesUpdated && isStartedRef.current) block - let HMR handle it!
       } catch (err: any) {
         isInstallingRef.current = false;
         isMountingRef.current = false;
@@ -446,25 +301,19 @@ export function useWebContainer(
         writeToTerminal(`\x1b[31mError: ${err.message}\x1b[0m\r\n`);
       }
     },
-    [startDevServer]
+    [startDevServer, runInstall, writeToTerminal]
   );
 
-
-  // Handle initial boot
   useEffect(() => {
     if (files && Object.keys(files).length > 0 && !instance && !isBootingRef.current) {
       boot();
     }
-    
-    // Cleanup on unmount
     return () => {
       if (devProcessRef.current) {
-        console.log("[WebContainer] Hook unmounting, killing dev process...");
         devProcessRef.current.kill();
         devProcessRef.current = null;
       }
       if (installProcessRef.current) {
-        console.log("[WebContainer] Hook unmounting, killing install process...");
         installProcessRef.current.kill();
         installProcessRef.current = null;
       }
@@ -473,145 +322,66 @@ export function useWebContainer(
 
   useEffect(() => {
     if (!files || Object.keys(files).length === 0 || !instance) return;
-
-    // Check if there are actual content differences or deletions between store and mounted files
-    const hasChanges = 
-      Object.entries(files).some(([path, { content }]) => mountedFilesRef.current[path] !== content) ||
-      Object.keys(mountedFilesRef.current).some(path => !files[path]);
-
-    // Guard: We generally wait for streaming to finish to avoid mounting partial files
-    // and frequent server restarts. However, if it's the first boot, we proceed.
+    const hasChanges = Object.entries(files).some(([path, { content }]) => mountedFilesRef.current[path] !== content) ||
+                       Object.keys(mountedFilesRef.current).some(path => !files[path]);
     if (isStreaming && isStartedRef.current) return;
-
-    // Only trigger if we have changes or haven't started yet
     if (hasChanges || !isStartedRef.current) {
-      // Guard: Don't re-run if already in progress
-      if (isBootingRef.current || isMountingRef.current || isInstallingRef.current) {
-        return;
-      }
-
+      if (isBootingRef.current || isMountingRef.current || isInstallingRef.current) return;
       mountAndRun(instance, files);
     }
   }, [files, instance, mountAndRun, isStreaming]);
 
-  // File System Watcher to sync terminal changes back to the store
   useEffect(() => {
     if (!instance || state !== "ready" || isMountingRef.current) return;
-
     let mounted = true;
     let watchHandle: any;
-
     const startWatching = async () => {
       try {
-        console.log("[WebContainer] Starting FS watcher on /project...");
-        watchHandle = await instance.fs.watch(
-          "/project",
-          { recursive: true },
-          async (type: "rename" | "change", eventFilename: string | Uint8Array) => {
-            if (!mounted || isMountingRef.current) return;
+        watchHandle = await instance.fs.watch("/", { recursive: true }, async (type, eventFilename) => {
+          if (!mounted || isMountingRef.current) return;
+          
+          const filename = typeof eventFilename === "string" ? eventFilename : new TextDecoder().decode(eventFilename);
+          const cleanPath = filename.startsWith("/") ? filename.slice(1) : filename;
+          
+          if (!cleanPath || cleanPath.includes("node_modules") || cleanPath.includes(".next") || 
+              cleanPath.includes(".git") || cleanPath.includes("dist") || cleanPath.includes("build") || 
+              (cleanPath.split("/").some(p => p.startsWith(".")) && !cleanPath.endsWith(".keep"))) return;
 
-            const filename = typeof eventFilename === "string" 
-              ? eventFilename 
-              : new TextDecoder().decode(eventFilename);
-
-            console.log(`[WebContainer] FS Event: ${type} - ${filename}`);
-
-            // Ignore common noise and hidden files (except .keep)
-            if (
-              filename.includes("node_modules") ||
-              filename.includes(".next") ||
-              filename.includes(".git") ||
-              filename.includes("dist") ||
-              filename.includes("build") ||
-              (filename.split("/").some((p: string) => p.startsWith(".")) && !filename.endsWith(".keep"))
-            ) {
+          try {
+            const fs = instance.fs as any;
+            const isDir = await fs.readdir(`/${cleanPath}`).then(() => true).catch(() => false);
+            if (isDir) {
+              const currentFiles = useWorkspaceStore.getState().currentWorkspace?.files || {};
+              const isAlreadyPresent = Object.keys(currentFiles).some(p => p === `${cleanPath}/.keep` || p.startsWith(`${cleanPath}/`));
+              if (!isAlreadyPresent) await fs.writeFile(`/${cleanPath}/.keep`, "");
               return;
             }
-
-            // Strip 'project/' prefix if it's there (sometimes watch returns it)
-            const cleanPath = filename.startsWith("project/") ? filename.slice(8) : filename;
-            if (!cleanPath) return;
-
-            try {
-              const fs = instance.fs as any;
-              
-              // 1. Check if it's a directory first
-              const isDir = await fs.readdir(`project/${cleanPath}`).then(() => true).catch(() => false);
-
-              if (isDir) {
-                // Directories are implicit in our flat store.
-                // We ensure empty folders persist by keeping a .keep file.
-                const currentFiles = useWorkspaceStore.getState().currentWorkspace?.files || {};
-                
-                // Check if this directory is already "accounted for" in the store
-                const isAlreadyPresent = Object.keys(currentFiles).some(p => 
-                  p === `${cleanPath}/.keep` || p.startsWith(`${cleanPath}/`)
-                );
-                
-                if (!isAlreadyPresent) {
-                  console.log(`[WebContainer] Detected folder: ${cleanPath}, writing .keep`);
-                  await fs.writeFile(`project/${cleanPath}/.keep`, "");
-                }
-                return;
+            const content = await fs.readFile(`/${cleanPath}`, "utf-8").catch(() => null);
+            if (content !== null) {
+              if (mountedFilesRef.current[cleanPath] !== content) {
+                mountedFilesRef.current[cleanPath] = content;
+                const currentFiles = { ...useWorkspaceStore.getState().currentWorkspace?.files };
+                currentFiles[cleanPath] = { content };
+                await useWorkspaceStore.getState().updateFiles({ ...currentFiles });
               }
-
-              // 2. If not a directory, try reading as a file
-              const content = await fs.readFile(`project/${cleanPath}`, "utf-8").catch(() => null);
-
-              if (content !== null) {
-                // File addition or modification
-                if (mountedFilesRef.current[cleanPath] !== content) {
-                  mountedFilesRef.current[cleanPath] = content;
-                  const currentFiles = {
-                    ...useWorkspaceStore.getState().currentWorkspace?.files,
-                  };
-                  currentFiles[cleanPath] = { content };
-                  await useWorkspaceStore.getState().updateFiles({ ...currentFiles });
-                  console.log(`[WebContainer] Synced file: ${cleanPath}`);
-                }
-              } else {
-                // Deletion (both readdir and readFile failed)
-                const currentFiles = {
-                  ...useWorkspaceStore.getState().currentWorkspace?.files,
-                };
-                if (currentFiles[cleanPath]) {
-                  delete currentFiles[cleanPath];
-                  delete mountedFilesRef.current[cleanPath];
-                  await useWorkspaceStore.getState().updateFiles({ ...currentFiles });
-                  console.log(`[WebContainer] Synced deletion: ${cleanPath}`);
-                }
+            } else {
+              const currentFiles = { ...useWorkspaceStore.getState().currentWorkspace?.files };
+              if (currentFiles[cleanPath]) {
+                delete currentFiles[cleanPath];
+                delete mountedFilesRef.current[cleanPath];
+                await useWorkspaceStore.getState().updateFiles({ ...currentFiles });
               }
-            } catch (e) {
-              console.error(`[WebContainer] Sync error for ${cleanPath}:`, e);
             }
-          }
-        );
-      } catch (err) {
-        console.error("[WebContainer] FS Watcher failed to start:", err);
-      }
+          } catch (e) {}
+        });
+      } catch (err) {}
     };
-
     startWatching();
-
     return () => {
       mounted = false;
-      if (watchHandle) {
-        watchHandle.close();
-      }
+      if (watchHandle) watchHandle.close();
     };
   }, [instance, state]);
 
-  return { 
-    instance, 
-    state, 
-    url, 
-    setUrl, 
-    port, 
-    setPort, 
-    error, 
-    startDevServer, 
-    stopDevServer, 
-    runInstall, 
-    stopInstall 
-  };
+  return { instance, state, url, setUrl, port, setPort, error, startDevServer, stopDevServer, runInstall, stopInstall };
 }

@@ -537,7 +537,7 @@ export default function FileExplorer() {
     // Sync deletion to WebContainer
     if (instance) {
       try {
-        await instance.fs.rm(`project/${path}`, { recursive: true });
+        await instance.fs.rm(`${path}`, { recursive: true });
       } catch (e) {
         // Already deleted or not found
       }

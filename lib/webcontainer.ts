@@ -10,7 +10,7 @@ export async function getWebContainerInstance() {
   if (bootPromise) {
     return bootPromise;
   }
-  bootPromise = WebContainer.boot({coep: 'credentialless'}).then((instance) => {
+  bootPromise = WebContainer.boot({coep: 'credentialless', workdirName: 'project'}).then((instance) => {
     webcontainerInstance = instance;
     return instance;
   });
