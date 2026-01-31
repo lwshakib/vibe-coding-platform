@@ -70,10 +70,30 @@ const LeftSideView: React.FC = () => {
   const currentName = currentWorkspace?.name || nameInput || "My Project";
 
   const startEditing = () => {
+    setNameInput(currentName);
     setIsEditingName(true);
   };
 
-  const submitName = () => {
+  const submitName = async () => {
+    if (nameInput.trim() && nameInput !== currentName && currentWorkspace) {
+      try {
+        const response = await fetch(`/api/workspaces/${currentWorkspace.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: nameInput.trim() }),
+        });
+        if (response.ok) {
+          const data = await response.json();
+          useWorkspaceStore.setState((state) => ({
+            currentWorkspace: state.currentWorkspace 
+              ? { ...state.currentWorkspace, name: data.name } 
+              : null
+          }));
+        }
+      } catch (e) {
+        console.error("Failed to update workspace name:", e);
+      }
+    }
     setIsEditingName(false);
   };
 
