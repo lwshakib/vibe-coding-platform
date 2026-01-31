@@ -58,10 +58,25 @@ interface WorkspaceStore {
   addOpenFile: (path: string) => void;
   closeFile: (path: string) => void;
   updateFiles: (files: any, immediate?: boolean) => Promise<void>;
+  selectedContexts: Array<{
+    id: string;
+    path: string;
+    fromLine: number;
+    toLine: number;
+    content: string;
+  }>;
+  addSelectedContext: (context: { path: string; fromLine: number; toLine: number; content: string }) => void;
+  removeSelectedContext: (id: string) => void;
   activePreviewRoute: string;
   setActivePreviewRoute: (route: string) => void;
   pendingPreviewRoute: string | null;
   setPendingPreviewRoute: (route: string | null) => void;
+  chatInput: string;
+  setChatInput: (input: string) => void;
+  showExpoQR: boolean;
+  setShowExpoQR: (show: boolean) => void;
+  expoQRData: string | null;
+  setExpoQRData: (data: string | null) => void;
 }
 
 export const useWorkspaceStore = create<WorkspaceStore>((set) => ({
@@ -145,10 +160,23 @@ export const useWorkspaceStore = create<WorkspaceStore>((set) => ({
       debouncedSave(currentWorkspace.id, files);
     }
   },
+  selectedContexts: [],
+  addSelectedContext: (context) => set((state) => ({
+    selectedContexts: [...state.selectedContexts, { ...context, id: Math.random().toString(36).substr(2, 9) }]
+  })),
+  removeSelectedContext: (id) => set((state) => ({
+    selectedContexts: state.selectedContexts.filter(c => c.id !== id)
+  })),
   activePreviewRoute: "/",
-  setActivePreviewRoute: (route) => set({ activePreviewRoute: route }),
+  setActivePreviewRoute: (route: string) => set({ activePreviewRoute: route }),
   pendingPreviewRoute: null,
-  setPendingPreviewRoute: (route) => set({ pendingPreviewRoute: route }),
+  setPendingPreviewRoute: (route: string | null) => set({ pendingPreviewRoute: route }),
+  chatInput: "",
+  setChatInput: (input: string) => set({ chatInput: input }),
+  showExpoQR: false,
+  setShowExpoQR: (show) => set({ showExpoQR: show }),
+  expoQRData: null,
+  setExpoQRData: (data) => set({ expoQRData: data }),
   sendMessage: async (content) => {
     // Add user message
     const newUserMessage = {
