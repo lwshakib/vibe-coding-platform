@@ -12,7 +12,8 @@ import {
   Square, 
   Download, 
   XCircle,
-  Plus
+  Plus,
+  X
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useWebContainerContext } from "@/context/WebContainerContext";
@@ -28,7 +29,7 @@ import { cn } from "@/lib/utils";
 
 export default function TerminalUI() {
   const [tabs, setTabs] = useState<{ id: string; name: string }[]>([
-    { id: "1", name: "Terminal 1" },
+    { id: "1", name: "Main Terminal" },
   ]);
   const [activeTabId, setActiveTabId] = useState("1");
   
@@ -278,9 +279,9 @@ export default function TerminalUI() {
                 <TerminalIcon className="w-3 h-3" />
                 {tab.name}
                 {tab.id !== "1" && (
-                  <XCircle 
-                    className="w-3 h-3 ml-1 hover:text-red-500 transition-colors" 
-                    onClick={(e) => removeTab(tab.id, e)}
+                  <X
+                    className="w-3 h-3 ml-1 hover:text-red-500 transition-colors"
+                    onClick={(e: React.MouseEvent) => removeTab(tab.id, e)}
                   />
                 )}
               </button>
