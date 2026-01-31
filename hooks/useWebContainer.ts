@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { getWebContainerInstance } from "@/lib/webcontainer";
 import type { WebContainer, FileSystemTree, WebContainerProcess } from "@webcontainer/api";
-import { Terminal } from "xterm";
+import type { Terminal } from "xterm";
 import { useWorkspaceStore } from "@/context";
 
 type WebContainerState =
@@ -36,11 +36,33 @@ export function useWebContainer(
   const installProcessRef = useRef<WebContainerProcess | null>(null);
   const prevWorkspaceIdRef = useRef<string | undefined>(workspaceId);
 
-  const writeToTerminal = (data: string) => {
+  const logBufferRef = useRef<string[]>([]);
+
+  const writeToTerminal = useCallback((data: string) => {
+    const formattedData = data.replace(/\n/g, "\r\n");
     if (terminalRef?.current) {
-      terminalRef.current.write(data.replace(/\n/g, "\r\n"));
+      // Flush buffer if any
+      if (logBufferRef.current.length > 0) {
+        terminalRef.current.write(logBufferRef.current.join(""));
+        logBufferRef.current = [];
+      }
+      terminalRef.current.write(formattedData);
+    } else {
+      logBufferRef.current.push(formattedData);
     }
-  };
+  }, [terminalRef]);
+
+  // Flush buffer when terminal becomes available
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (terminalRef?.current && logBufferRef.current.length > 0) {
+        terminalRef.current.write(logBufferRef.current.join(""));
+        logBufferRef.current = [];
+        clearInterval(interval);
+      }
+    }, 100);
+    return () => clearInterval(interval);
+  }, [terminalRef]);
 
   // Handle Workspace Switch
   useEffect(() => {
@@ -254,7 +276,7 @@ export function useWebContainer(
     isBootingRef.current = true;
     try {
       setState("booting");
-      writeToTerminal("\x1b[33mBooting WebContainer...\x1b[0m\r\r\n");
+      writeToTerminal("\x1b[33mBooting WebContainer...\x1b[0m\r\n");
       const wc = await getWebContainerInstance();
       
       // Attach listener IMMEDIATELY after getting instance
@@ -374,6 +396,7 @@ export function useWebContainer(
           isMountingRef.current = false;
           filesUpdated = true;
         } else {
+          // Handle updates and additions
           for (const [path, { content }] of Object.entries(finalFiles)) {
             if (mountedFilesRef.current[path] !== content) {
               const fullPath = `project/${path}`;
@@ -386,6 +409,22 @@ export function useWebContainer(
               mountedFilesRef.current[path] = content;
               writeToTerminal(`\x1b[90mUpdated: ${path}\x1b[0m\r\n`);
               filesUpdated = true;
+            }
+          }
+
+          // Handle deletions
+          const currentMountedPaths = Object.keys(mountedFilesRef.current);
+          for (const path of currentMountedPaths) {
+            if (!finalFiles[path]) {
+              // Path was removed from store, remove from WebContainer
+              try {
+                await wc.fs.rm(`project/${path}`, { recursive: true }).catch(() => {});
+                delete mountedFilesRef.current[path];
+                writeToTerminal(`\x1b[90mDeleted: ${path}\x1b[0m\r\n`);
+                filesUpdated = true;
+              } catch (e) {
+                // Ignore if already deleted
+              }
             }
           }
         }
@@ -435,10 +474,10 @@ export function useWebContainer(
   useEffect(() => {
     if (!files || Object.keys(files).length === 0 || !instance) return;
 
-    // Check if there are actual content differences between store and mounted files
-    const hasChanges = Object.entries(files).some(
-      ([path, { content }]) => mountedFilesRef.current[path] !== content
-    );
+    // Check if there are actual content differences or deletions between store and mounted files
+    const hasChanges = 
+      Object.entries(files).some(([path, { content }]) => mountedFilesRef.current[path] !== content) ||
+      Object.keys(mountedFilesRef.current).some(path => !files[path]);
 
     // Guard: We generally wait for streaming to finish to avoid mounting partial files
     // and frequent server restarts. However, if it's the first boot, we proceed.
@@ -455,25 +494,112 @@ export function useWebContainer(
     }
   }, [files, instance, mountAndRun, isStreaming]);
 
+  // File System Watcher to sync terminal changes back to the store
   useEffect(() => {
-    const handleForceReady = () => {
-      if (state !== "ready") {
-        console.log("[WebContainer] Forcing ready state...");
-        // Use default WebContainer URL logic if possible, or just set standard values
-        const defaultUrl = instance
-          ? `https://3000-${(instance as any)._node?.id || "preview"}.webcontainer.io`
-          : null;
-        
-        setUrl(defaultUrl || `http://localhost:3000`);
-        setPort(3000);
-        setState("ready");
-        isStartedRef.current = true;
+    if (!instance || state !== "ready" || isMountingRef.current) return;
+
+    let mounted = true;
+    let watchHandle: any;
+
+    const startWatching = async () => {
+      try {
+        console.log("[WebContainer] Starting FS watcher on /project...");
+        watchHandle = await instance.fs.watch(
+          "/project",
+          { recursive: true },
+          async (type: "rename" | "change", eventFilename: string | Uint8Array) => {
+            if (!mounted || isMountingRef.current) return;
+
+            const filename = typeof eventFilename === "string" 
+              ? eventFilename 
+              : new TextDecoder().decode(eventFilename);
+
+            console.log(`[WebContainer] FS Event: ${type} - ${filename}`);
+
+            // Ignore common noise and hidden files (except .keep)
+            if (
+              filename.includes("node_modules") ||
+              filename.includes(".next") ||
+              filename.includes(".git") ||
+              filename.includes("dist") ||
+              filename.includes("build") ||
+              (filename.split("/").some((p: string) => p.startsWith(".")) && !filename.endsWith(".keep"))
+            ) {
+              return;
+            }
+
+            // Strip 'project/' prefix if it's there (sometimes watch returns it)
+            const cleanPath = filename.startsWith("project/") ? filename.slice(8) : filename;
+            if (!cleanPath) return;
+
+            try {
+              const fs = instance.fs as any;
+              
+              // 1. Check if it's a directory first
+              const isDir = await fs.readdir(`project/${cleanPath}`).then(() => true).catch(() => false);
+
+              if (isDir) {
+                // Directories are implicit in our flat store.
+                // We ensure empty folders persist by keeping a .keep file.
+                const currentFiles = useWorkspaceStore.getState().currentWorkspace?.files || {};
+                
+                // Check if this directory is already "accounted for" in the store
+                const isAlreadyPresent = Object.keys(currentFiles).some(p => 
+                  p === `${cleanPath}/.keep` || p.startsWith(`${cleanPath}/`)
+                );
+                
+                if (!isAlreadyPresent) {
+                  console.log(`[WebContainer] Detected folder: ${cleanPath}, writing .keep`);
+                  await fs.writeFile(`project/${cleanPath}/.keep`, "");
+                }
+                return;
+              }
+
+              // 2. If not a directory, try reading as a file
+              const content = await fs.readFile(`project/${cleanPath}`, "utf-8").catch(() => null);
+
+              if (content !== null) {
+                // File addition or modification
+                if (mountedFilesRef.current[cleanPath] !== content) {
+                  mountedFilesRef.current[cleanPath] = content;
+                  const currentFiles = {
+                    ...useWorkspaceStore.getState().currentWorkspace?.files,
+                  };
+                  currentFiles[cleanPath] = { content };
+                  await useWorkspaceStore.getState().updateFiles({ ...currentFiles });
+                  console.log(`[WebContainer] Synced file: ${cleanPath}`);
+                }
+              } else {
+                // Deletion (both readdir and readFile failed)
+                const currentFiles = {
+                  ...useWorkspaceStore.getState().currentWorkspace?.files,
+                };
+                if (currentFiles[cleanPath]) {
+                  delete currentFiles[cleanPath];
+                  delete mountedFilesRef.current[cleanPath];
+                  await useWorkspaceStore.getState().updateFiles({ ...currentFiles });
+                  console.log(`[WebContainer] Synced deletion: ${cleanPath}`);
+                }
+              }
+            } catch (e) {
+              console.error(`[WebContainer] Sync error for ${cleanPath}:`, e);
+            }
+          }
+        );
+      } catch (err) {
+        console.error("[WebContainer] FS Watcher failed to start:", err);
       }
     };
 
-    window.addEventListener("vibe-force-ready", handleForceReady);
-    return () => window.removeEventListener("vibe-force-ready", handleForceReady);
-  }, [state, instance]);
+    startWatching();
+
+    return () => {
+      mounted = false;
+      if (watchHandle) {
+        watchHandle.close();
+      }
+    };
+  }, [instance, state]);
 
   return { 
     instance, 

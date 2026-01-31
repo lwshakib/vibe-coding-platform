@@ -26,7 +26,9 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { useWorkspaceStore } from "@/context";
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
+import { getFileIcon } from "./utils";
+import { useWebContainerContext } from "@/context/WebContainerContext";
 
 type FileNode = {
   id: string;
@@ -47,18 +49,15 @@ const transformFilesToTree = (files: Record<string, any>): FileNode[] => {
   Object.keys(files).forEach((path) => {
     const parts = path.split("/");
     let currentLevel = root;
+    const isKeepFile = parts[parts.length - 1] === ".keep";
 
     parts.forEach((part, index) => {
-      const isFile = index === parts.length - 1;
+      const isLastPart = index === parts.length - 1;
+      
+      // We skip the actual .keep file node, but we don't skip the iterations for its parents
+      if (isLastPart && isKeepFile) return;
 
-      // Ensure currentLevel is defined before find
-      if (!currentLevel) {
-        console.warn(
-          `Unexpected undefined currentLevel at path: ${path}, part: ${part}`
-        );
-        return;
-      }
-
+      const isFile = isLastPart;
       let existingNode = currentLevel.find((node) => node.name === part);
 
       if (!existingNode) {
@@ -70,12 +69,12 @@ const transformFilesToTree = (files: Record<string, any>): FileNode[] => {
         };
         currentLevel.push(existingNode);
       } else if (!isFile && existingNode.type === "file") {
-        // Handle case where a part was previously identified as a file but now has sub-parts
+        // Upgrade file to folder if it's acting as a directory in a subsequent path
         existingNode.type = "folder";
         existingNode.children = [];
       }
 
-      if (!isFile) {
+      if (existingNode.type === "folder") {
         currentLevel = existingNode.children || [];
       }
     });
@@ -99,8 +98,6 @@ const transformFilesToTree = (files: Record<string, any>): FileNode[] => {
   sortNodes(root);
   return root;
 };
-
-import { getFileIcon } from "./utils";
 
 const FileTreeItem = ({
   node,
@@ -352,6 +349,7 @@ export default function FileExplorer() {
     openFiles,
     setOpenFiles,
   } = useWorkspaceStore();
+  const { instance } = useWebContainerContext();
   const [activeTab, setActiveTab] = useState<"files" | "search">("files");
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreating, setIsCreating] = useState<"file" | "folder" | null>(null);
@@ -535,6 +533,15 @@ export default function FileExplorer() {
     setOpenFiles(updatedOpenFiles);
 
     await updateFiles(newFiles, true);
+
+    // Sync deletion to WebContainer
+    if (instance) {
+      try {
+        await instance.fs.rm(`project/${path}`, { recursive: true });
+      } catch (e) {
+        // Already deleted or not found
+      }
+    }
   };
 
   const handleCopy = (path: string) => {
@@ -673,6 +680,13 @@ export default function FileExplorer() {
                         placeholder="folder name"
                       />
                     </div>
+                  </div>
+                )}
+
+                {folders.length === 0 && rootFiles.length === 0 && !isCreating && (
+                  <div className="flex flex-col items-center justify-center h-40 text-muted-foreground opacity-50 px-4 text-center">
+                    <Files className="w-8 h-8 mb-2 stroke-1" />
+                    <p className="text-xs">No files found. Create one to get started.</p>
                   </div>
                 )}
 

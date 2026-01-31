@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import { Terminal as XTerm } from "xterm";
-import { FitAddon } from "@xterm/addon-fit";
+// import { Terminal as XTerm } from "xterm";
+// import { FitAddon } from "@xterm/addon-fit";
 import "xterm/css/xterm.css";
 import { 
   Terminal as TerminalIcon, 
@@ -34,9 +34,10 @@ export default function TerminalUI() {
   const [activeTabId, setActiveTabId] = useState("1");
   
   const terminalContainersRef = useRef<Record<string, HTMLDivElement | null>>({});
-  const xtermsRef = useRef<Record<string, XTerm>>({});
+  const xtermsRef = useRef<Record<string, any>>({});
   const shellProcessesRef = useRef<Record<string, { process: any, onData: any, onResize: any }>>({});
-  const fitAddonsRef = useRef<Record<string, FitAddon>>({});
+  const fitAddonsRef = useRef<Record<string, any>>({});
+  const initializingRef = useRef<Record<string, boolean>>({});
   
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -55,13 +56,50 @@ export default function TerminalUI() {
   const isInstalling = state === "installing";
   const isTransitioning = state === "booting" || state === "mounting";
 
+  // Pre-load xterm modules to speed up tab creation
+  const xtermModuleRef = useRef<{ Terminal: any, FitAddon: any } | null>(null);
+
   useEffect(() => {
     setMounted(true);
+    // Silent pre-load
+    Promise.all([
+      import("xterm"),
+      import("@xterm/addon-fit")
+    ]).then(([xterm, fit]) => {
+      xtermModuleRef.current = { 
+        Terminal: xterm.Terminal, 
+        FitAddon: fit.FitAddon 
+      };
+      
+      // If we are already mounted and tabs exist, we can re-init if they weren't ready
+      tabs.forEach(tab => {
+        if (!xtermsRef.current[tab.id]) {
+          initTerminal(tab.id);
+        }
+      });
+    });
   }, []);
 
   // Initialize terminal for a specific tab
-  const initTerminal = useCallback((tabId: string) => {
-    if (!terminalContainersRef.current[tabId] || xtermsRef.current[tabId]) return;
+  const initTerminal = useCallback(async (tabId: string) => {
+    if (!terminalContainersRef.current[tabId] || xtermsRef.current[tabId] || initializingRef.current[tabId]) return;
+    
+    initializingRef.current[tabId] = true;
+
+    try {
+      // Use pre-loaded modules if available, otherwise load them
+      let XTerm, FitAddon;
+    if (xtermModuleRef.current) {
+      XTerm = xtermModuleRef.current.Terminal;
+      FitAddon = xtermModuleRef.current.FitAddon;
+    } else {
+      const [xt, ft] = await Promise.all([
+        import("xterm"),
+        import("@xterm/addon-fit")
+      ]);
+      XTerm = xt.Terminal;
+      FitAddon = ft.FitAddon;
+    }
 
     const isLight = resolvedTheme === "light" || theme === "light";
 
@@ -86,39 +124,55 @@ export default function TerminalUI() {
       scrollback: 1000,
     });
 
-    const fitAddon = new FitAddon();
-    term.loadAddon(fitAddon);
-    term.open(terminalContainersRef.current[tabId]!);
-    
-    xtermsRef.current[tabId] = term;
-    fitAddonsRef.current[tabId] = fitAddon;
-
-    term.writeln("\x1b[32mWelcome to Vibe Terminal\x1b[0m");
-
-    // ONLY set global ref for the "Vibe" terminal (ID "1")
-    if (tabId === "1") {
-      globalTerminalRef.current = term;
-    }
-
-    const timer = setTimeout(() => {
-      fitAddon.fit();
-    }, 100);
-
-    const resizeObserver = new ResizeObserver(() => {
-      fitAddon.fit();
-    });
-    resizeObserver.observe(terminalContainersRef.current[tabId]!);
-
-    return () => {
-      resizeObserver.disconnect();
-      clearTimeout(timer);
-      term.dispose();
-      delete xtermsRef.current[tabId];
-      delete fitAddonsRef.current[tabId];
-      if (tabId === "1") {
-        globalTerminalRef.current = null;
+      const fitAddon = new FitAddon();
+      term.loadAddon(fitAddon);
+      
+      // CRITICAL: Clear container to prevent double RENDERING if re-init happens
+      const container = terminalContainersRef.current[tabId];
+      if (container) {
+        container.innerHTML = "";
+        term.open(container);
       }
-    };
+      
+      // ONLY set global ref for the "Vibe" terminal (ID "1")
+      if (tabId === "1") {
+        globalTerminalRef.current = term;
+      }
+
+      xtermsRef.current[tabId] = term;
+      fitAddonsRef.current[tabId] = fitAddon;
+
+      term.writeln("\x1b[32mWelcome to Vibe Terminal\x1b[0m");
+
+      const timer = setTimeout(() => {
+        if (fitAddonsRef.current[tabId]) {
+          fitAddonsRef.current[tabId].fit();
+          xtermsRef.current[tabId]?.scrollToBottom();
+        }
+      }, 200);
+
+      const resizeObserver = new ResizeObserver(() => {
+        if (fitAddonsRef.current[tabId]) {
+          fitAddonsRef.current[tabId].fit();
+          xtermsRef.current[tabId]?.scrollToBottom();
+        }
+      });
+      if (container) resizeObserver.observe(container);
+
+      return () => {
+        resizeObserver.disconnect();
+        clearTimeout(timer);
+        term.dispose();
+        delete xtermsRef.current[tabId];
+        delete fitAddonsRef.current[tabId];
+        delete initializingRef.current[tabId];
+        if (tabId === "1") {
+          globalTerminalRef.current = null;
+        }
+      };
+    } finally {
+      initializingRef.current[tabId] = false;
+    }
   }, [theme, resolvedTheme, globalTerminalRef]);
 
   // Handle Tab changes and initial mount
@@ -132,22 +186,71 @@ export default function TerminalUI() {
     });
   }, [mounted, tabs, initTerminal]);
 
-  // Focus active terminal
+  // Handle Theme changes in real-time
   useEffect(() => {
-    if (activeTabId && xtermsRef.current[activeTabId]) {
-      const term = xtermsRef.current[activeTabId];
-      const fitAddon = fitAddonsRef.current[activeTabId];
-      
-      setTimeout(() => {
-        fitAddon?.fit();
+    if (!mounted) return;
+    
+    const isLight = resolvedTheme === "light" || theme === "light";
+    const terminalTheme = {
+      background: isLight ? "#f8fafc" : "#0a0a0a",
+      foreground: isLight ? "#334155" : "#ffffff",
+      cursor: isLight ? "#64748b" : "#ffffff",
+      selectionBackground: isLight ? "#cbd5e1" : "#5c5c5c",
+      black: isLight ? "#1e293b" : "#000000",
+      red: isLight ? "#dc2626" : "#ef4444",
+      green: isLight ? "#16a34a" : "#22c55e",
+      yellow: isLight ? "#d97706" : "#f59e0b",
+      blue: isLight ? "#2563eb" : "#3b82f6",
+      magenta: isLight ? "#c026d3" : "#d946ef",
+      cyan: isLight ? "#0891b2" : "#06b6d4",
+      white: isLight ? "#f1f5f9" : "#bfbfbf",
+    };
+
+    Object.values(xtermsRef.current).forEach(term => {
+      term.options.theme = terminalTheme;
+    });
+  }, [theme, resolvedTheme, mounted]);
+
+  // Focus and Fit active terminal
+  useEffect(() => {
+    if (!activeTabId || !xtermsRef.current[activeTabId]) return;
+    
+    const term = xtermsRef.current[activeTabId];
+    const fitAddon = fitAddonsRef.current[activeTabId];
+    const container = terminalContainersRef.current[activeTabId];
+    
+    if (!container || !fitAddon) return;
+
+    // Initial fit with slight delay for DOM to settle
+    const timer = setTimeout(() => {
+      try {
+        fitAddon.fit();
+        term.scrollToBottom();
         term.focus();
-      }, 50);
-    }
-  }, [activeTabId]);
+      } catch (e) {
+        console.warn("Terminal fit failed", e);
+      }
+    }, 200);
+
+    // Robust ResizeObserver for element-specific sizing
+    const resizeObserver = new ResizeObserver(() => {
+      try {
+        fitAddon.fit();
+        term.scrollToBottom();
+      } catch (e) {}
+    });
+
+    resizeObserver.observe(container);
+
+    return () => {
+      clearTimeout(timer);
+      resizeObserver.disconnect();
+    };
+  }, [activeTabId, tabs.length]); // Re-run if tabs change or active tab shifts
 
   // Handle shell interaction for each terminal
   useEffect(() => {
-    if (!instance || state !== "ready") return;
+    if (!instance || ["idle", "booting", "mounting"].includes(state)) return;
 
     tabs.forEach(async (tab) => {
       const term = xtermsRef.current[tab.id];
@@ -170,7 +273,7 @@ export default function TerminalUI() {
 
       shellProcess.output.pipeTo(
         new WritableStream({
-          write(data) {
+          write(data: string | Uint8Array) {
             term.write(data);
             
             // Expo QR Code detection (only on Vibe terminal)
@@ -193,19 +296,21 @@ export default function TerminalUI() {
       );
 
       const input = shellProcess.input.getWriter();
-      const onData = term.onData((data) => {
+      const onData = term.onData((data: string) => {
         input.write(data);
       });
 
-      const onResize = term.onResize(({ cols, rows }) => {
+      const onResize = term.onResize(({ cols, rows }: { cols: number, rows: number }) => {
         shellProcess.resize({ cols, rows });
       });
 
       shellProcessesRef.current[tab.id] = { process: shellProcess, onData, onResize };
 
-      // Ensure prompt shows up by sending a small enter if it's not showing
-      // Sometimes jsh needs a kick start to show PS1
-      input.write("\r");
+      // ONLY send initial enter to the Vibe terminal to kickstart logs/prompt
+      // Sending it to all terminals causes annoying double prompts in the UI
+      if (tab.id === "1") {
+        input.write("\r");
+      }
     });
   }, [instance, state, tabs, setExpoQRData]);
 
@@ -224,8 +329,8 @@ export default function TerminalUI() {
   const addTab = () => {
     if (tabs.length >= 3) return;
     const newId = String(Date.now());
-    const name = tabs.length === 1 ? "PowerShell" : `Terminal ${tabs.length + 1}`;
-    setTabs([...tabs, { id: newId, name }]);
+    // All additional terminals should be named "Bash"
+    setTabs([...tabs, { id: newId, name: "Bash" }]);
     setActiveTabId(newId);
   };
 
@@ -388,13 +493,13 @@ export default function TerminalUI() {
             )}
           </div>
         </div>
-        <div className="flex-1 p-2 min-h-0 relative bg-background">
+        <div className="flex-1 min-h-0 relative bg-background overflow-hidden p-2">
           {tabs.map((tab) => (
             <div 
               key={tab.id}
               ref={(el) => { terminalContainersRef.current[tab.id] = el }}
               className={cn(
-                "h-full w-full",
+                "h-full w-full overflow-hidden",
                 activeTabId === tab.id ? "block" : "hidden"
               )}
             />
