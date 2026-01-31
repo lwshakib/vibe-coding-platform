@@ -4,9 +4,15 @@ import MarkdownContent from "./MarkdownContent";
 
 interface UserMessageProps {
   content: string;
+  user?: {
+    name: string;
+    image?: string | null;
+  } | null;
 }
 
-const UserMessage: React.FC<UserMessageProps> = ({ content }) => {
+const UserMessage: React.FC<UserMessageProps> = ({ content, user }) => {
+  const initial = user?.name ? user.name.charAt(0).toUpperCase() : "U";
+
   return (
     <div className="flex justify-end mb-6 group animate-in fade-in slide-in-from-right-4 duration-300">
       <div className="flex items-start gap-4 max-w-[85%]">
@@ -19,9 +25,9 @@ const UserMessage: React.FC<UserMessageProps> = ({ content }) => {
           </div>
         </div>
         <Avatar className="h-10 w-10 shrink-0 border-2 border-primary/20 shadow-sm">
-          <AvatarImage src="/user-avatar.png" alt="User" />
+          {user?.image && <AvatarImage src={user.image} alt={user.name} />}
           <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
-            U
+            {initial}
           </AvatarFallback>
         </Avatar>
       </div>

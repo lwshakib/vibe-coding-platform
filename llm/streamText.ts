@@ -54,7 +54,7 @@ export async function streamText(
           await prisma.message.create({
             data: {
               workspaceId,
-              role: "ASSISTANT",
+              role: "assistant",
               parts: [{ type: "text", text }] as any,
             },
           });

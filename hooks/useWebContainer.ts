@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { getWebContainerInstance } from "@/lib/webcontainer";
 import type { WebContainer, FileSystemTree, WebContainerProcess } from "@webcontainer/api";
 import { Terminal } from "xterm";
+import { useWorkspaceStore } from "@/context";
 
 type WebContainerState =
   | "idle"
@@ -22,6 +23,7 @@ export function useWebContainer(
   const [url, setUrl] = useState<string | null>(null);
   const [port, setPort] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { setShowExpoQR, setExpoQRData } = useWorkspaceStore();
 
   const mountedFilesRef = useRef<Record<string, string>>({});
   const isStartedRef = useRef(false);
@@ -108,6 +110,16 @@ export function useWebContainer(
                 // but we can at least log that we're waiting.
               }
             }, 2000);
+          }
+
+          // Expo QR Code detection
+          if (data.includes("exp://")) {
+            const match = data.match(/exp:\/\/[^\s\n\x1b]+/);
+            if (match) {
+              const qrUrl = match[0];
+              setExpoQRData(qrUrl);
+              setShowExpoQR(true);
+            }
           }
         },
       })

@@ -12,10 +12,12 @@ import { Button } from "@/components/ui/button";
 
 import { parseVibeArtifact } from "@/lib/parseVibeArtifact";
 import { LogoIcon } from "@/components/logo";
+import { authClient } from "@/lib/auth-client";
 
 const LeftSideView: React.FC = () => {
   const router = useRouter();
   const { currentWorkspace } = useWorkspaceStore();
+  const { data: session } = authClient.useSession();
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameInput, setNameInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -27,7 +29,7 @@ const LeftSideView: React.FC = () => {
     status,
   } = useChat({});
 
-  const { updateFiles, setStreamingStatus, setPendingPreviewRoute } =
+  const { updateFiles, setStreamingStatus, setPendingPreviewRoute, selectedContexts, removeSelectedContext } =
     useWorkspaceStore();
 
   // Sync messages when workspace changes (e.g. navigating between workspaces)
@@ -140,7 +142,7 @@ const LeftSideView: React.FC = () => {
         ref={scrollRef}
         className="flex-1 overflow-y-auto scroll-smooth [scrollbar-gutter:stable]"
       >
-        <div className="p-4 pr-6 min-h-full flex flex-col">
+        <div className="p-2 pr-4 min-h-full flex flex-col">
           {messages.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center animate-in fade-in zoom-in-95 duration-1000">
               <div className="text-center max-w-md px-4">
@@ -163,7 +165,11 @@ const LeftSideView: React.FC = () => {
             <div className="flex flex-col py-4 w-full max-w-2xl mx-auto">
               {messages.map((m, idx) =>
                 m.role === "user" ? (
-                  <UserMessage key={m.id || idx} content={getMessageText(m)} />
+                  <UserMessage
+                    key={m.id || idx}
+                    content={getMessageText(m)}
+                    user={session?.user}
+                  />
                 ) : (
                   <AssistantMessage
                     key={m.id || idx}
@@ -177,7 +183,7 @@ const LeftSideView: React.FC = () => {
         </div>
       </div>
 
-      <div className="shrink-0 p-4 bg-linear-to-t from-background via-background to-transparent">
+      <div className="shrink-0 p-2 bg-linear-to-t from-background via-background to-transparent">
         <AiInput
           onSend={async (text, files) => {
             // Helper to convert file to base64
@@ -198,9 +204,21 @@ const LeftSideView: React.FC = () => {
               }))
             );
 
+            // Build the message with selected contexts
+            let fullText = text.trim();
+            if (selectedContexts.length > 0) {
+              const contextBlock = selectedContexts
+                .map((ctx) => {
+                  const ext = ctx.path.split('.').pop() || 'text';
+                  return `Selected code from \`${ctx.path}\` (lines ${ctx.fromLine}-${ctx.toLine}):\n\`\`\`${ext}\n${ctx.content}\n\`\`\``;
+                })
+                .join('\n\n');
+              fullText = fullText ? `${contextBlock}\n\n${fullText}` : contextBlock;
+            }
+
             sendMessage(
               {
-                text: text.trim(),
+                text: fullText,
                 files: processedFiles as any,
               },
               {
@@ -210,6 +228,9 @@ const LeftSideView: React.FC = () => {
                 },
               }
             );
+
+            // Clear selected contexts after sending
+            selectedContexts.forEach((ctx) => removeSelectedContext(ctx.id));
           }}
         />
       </div>

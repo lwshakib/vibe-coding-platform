@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useMemo, useEffect, useState } from "react";
+import React, { useCallback, useMemo, useEffect, useState, useRef } from "react";
 import CodeMirror from "@uiw/react-codemirror";
 import { javascript } from "@codemirror/lang-javascript";
 import { html } from "@codemirror/lang-html";
@@ -12,6 +12,10 @@ import { useTheme } from "next-themes";
 import { tags as t } from "@lezer/highlight";
 import { createTheme } from "@uiw/codemirror-themes";
 import { inlineSuggestion } from "./inlineSuggestion";
+import { motion, AnimatePresence } from "motion/react";
+import { EditorView } from "@codemirror/view";
+import { Sparkles, MessageSquarePlus, PencilLine } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const lightTheme = createTheme({
   theme: "light",
@@ -101,9 +105,25 @@ export default function CodeView() {
     openFiles,
     setActiveFile,
     closeFile,
+    setChatInput,
+    addSelectedContext,
   } = useWorkspaceStore();
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const [selection, setSelection] = useState<{
+    text: string;
+    from: number;
+    to: number;
+    fromLine: number;
+    toLine: number;
+    pos: { top: number; left: number };
+  } | null>(null);
+  const [quickEdit, setQuickEdit] = useState<{
+    instructions: string;
+    isStreaming: boolean;
+    selection: NonNullable<typeof selection>;
+  } | null>(null);
+  const editorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -188,6 +208,95 @@ export default function CodeView() {
     });
   }, [activeFile]);
 
+  const handleQuickEdit = async () => {
+    if (!quickEdit || !activeFile || !currentWorkspace) return;
+
+    setQuickEdit((prev) => (prev ? { ...prev, isStreaming: true } : null));
+
+    try {
+      const response = await fetch("/api/quick-edit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          instructions: quickEdit.instructions,
+          selectedText: quickEdit.selection.text,
+          fileName: activeFile,
+          fullContent: currentWorkspace.files[activeFile].content,
+          fromLine: quickEdit.selection.fromLine,
+          toLine: quickEdit.selection.toLine,
+        }),
+      });
+
+      if (!response.ok) throw new Error("Quick edit failed");
+
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error("No reader");
+
+      let newSelectionText = "";
+      const baseContent = currentWorkspace.files[activeFile].content;
+      const prefix = baseContent.slice(0, quickEdit.selection.from);
+      const suffix = baseContent.slice(quickEdit.selection.to);
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = new TextDecoder().decode(value);
+        newSelectionText += chunk;
+
+        const updatedContent = prefix + newSelectionText + suffix;
+
+        const newFiles = { ...currentWorkspace.files };
+        newFiles[activeFile] = {
+          ...newFiles[activeFile],
+          content: updatedContent,
+        };
+        updateFiles(newFiles);
+      }
+    } catch (error) {
+      console.error("Quick edit error:", error);
+    } finally {
+      setQuickEdit(null);
+    }
+  };
+  
+  const selectionExtension = useMemo(() => {
+    return EditorView.domEventHandlers({
+      mouseup: (event, view) => {
+        // Wait a tiny bit for the selection to be updated in the state
+        setTimeout(() => {
+          const { state } = view;
+          const mainSelection = state.selection.main;
+          if (!mainSelection.empty) {
+            const text = state.doc.sliceString(mainSelection.from, mainSelection.to);
+            const coords = view.coordsAtPos(mainSelection.to);
+            const editorRect = editorRef.current?.getBoundingClientRect();
+
+            if (coords && editorRect) {
+              const fromLine = state.doc.lineAt(mainSelection.from).number;
+              const toLine = state.doc.lineAt(mainSelection.to).number;
+              setSelection({
+                text,
+                from: mainSelection.from,
+                to: mainSelection.to,
+                fromLine,
+                toLine,
+                pos: {
+                  top: coords.top - editorRect.top,
+                  left: coords.left - editorRect.left,
+                },
+              });
+            }
+          } else {
+            setSelection(null);
+          }
+        }, 10);
+      },
+      mousedown: () => {
+        setSelection(null);
+      },
+    });
+  }, []);
+
   if (!activeFile && openFiles.length === 0) {
     return (
       <div className="h-full w-full bg-background flex items-center justify-center text-muted-foreground select-none overflow-hidden relative">
@@ -251,13 +360,17 @@ export default function CodeView() {
         ))}
       </div>
 
-      <div className="flex-1 overflow-hidden relative">
+      <div className="flex-1 overflow-hidden relative" ref={editorRef}>
         {mounted && activeFile && (
           <CodeMirror
             value={fileContent || ""}
             height="100%"
             theme={currentTheme}
-            extensions={[getLanguage(activeFile), aiCompletionExtension]}
+            extensions={[
+              getLanguage(activeFile),
+              aiCompletionExtension,
+              selectionExtension,
+            ]}
             onChange={onChange}
             basicSetup={{
               lineNumbers: true,
@@ -287,6 +400,144 @@ export default function CodeView() {
             className="h-full text-sm"
           />
         )}
+
+        <AnimatePresence>
+          {quickEdit && (
+            <motion.div
+              initial={{ opacity: 0, y: 10, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.95 }}
+              style={{
+                position: "absolute",
+                top:
+                  quickEdit.selection.pos.top < 150
+                    ? quickEdit.selection.pos.top + 30
+                    : quickEdit.selection.pos.top - 160,
+                left: Math.max(
+                  10,
+                  Math.min(
+                    quickEdit.selection.pos.left - 225,
+                    (editorRef.current?.offsetWidth || 0) - 460
+                  )
+                ),
+                zIndex: 51,
+              }}
+              className="w-[450px] flex flex-col gap-2 p-3 bg-popover border border-border rounded-xl shadow-2xl backdrop-blur-md"
+            >
+              <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground pb-1">
+                <Sparkles className="w-3 h-3 text-primary" />
+                Quick Edit
+              </div>
+              <textarea
+                autoFocus
+                value={quickEdit.instructions}
+                onChange={(e) =>
+                  setQuickEdit((prev) =>
+                    prev ? { ...prev, instructions: e.target.value } : null
+                  )
+                }
+                placeholder="What should I change?"
+                className="w-full min-h-[80px] bg-secondary/50 border border-border rounded-lg p-2 text-sm outline-none focus:border-primary/50 transition-colors resize-none"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleQuickEdit();
+                  }
+                  if (e.key === "Escape") setQuickEdit(null);
+                }}
+              />
+              <div className="flex items-center justify-between gap-2 mt-1">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setQuickEdit(null)}
+                  className="h-8 text-xs hover:bg-destructive/10 hover:text-destructive transition-colors"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  disabled={
+                    !quickEdit.instructions.trim() || quickEdit.isStreaming
+                  }
+                  className="h-8 text-xs bg-primary text-primary-foreground hover:bg-primary/90"
+                  onClick={handleQuickEdit}
+                >
+                  {quickEdit.isStreaming ? (
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                      Editing...
+                    </div>
+                  ) : (
+                    "Submit"
+                  )}
+                </Button>
+              </div>
+            </motion.div>
+          )}
+
+          {selection && (
+            <motion.div
+              initial={{ opacity: 0, y: 10, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.95 }}
+              style={{
+                position: "absolute",
+                top:
+                  selection.pos.top < 60
+                    ? selection.pos.top + 30
+                    : selection.pos.top - 50,
+                left: Math.max(
+                  10,
+                  Math.min(
+                    selection.pos.left - 100,
+                    (editorRef.current?.offsetWidth || 0) - 250
+                  )
+                ),
+                zIndex: 50,
+              }}
+              className="flex items-center gap-1 p-1 bg-popover border border-border rounded-lg shadow-xl"
+            >
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 gap-2 text-xs hover:bg-primary/10 hover:text-primary transition-colors"
+                onClick={() => {
+                  setQuickEdit({
+                    instructions: "",
+                    isStreaming: false,
+                    selection: { ...selection! },
+                  });
+                  setSelection(null);
+                }}
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                Quick Edit
+              </Button>
+              <div className="w-px h-4 bg-border mx-1" />
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 gap-2 text-xs hover:bg-primary/10 hover:text-primary transition-colors"
+                onClick={() => {
+                  if (activeFile) {
+                    addSelectedContext({
+                      path: activeFile,
+                      fromLine: selection.fromLine,
+                      toLine: selection.toLine,
+                      content: selection.text,
+                    });
+                  }
+                  setSelection(null);
+                }}
+              >
+                <MessageSquarePlus className="w-3.5 h-3.5" />
+                Add to Chat
+              </Button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {mounted && !activeFile && openFiles.length > 0 && (
           <div className="h-full w-full flex items-center justify-center text-muted-foreground">
             Select a tab
