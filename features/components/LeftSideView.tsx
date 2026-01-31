@@ -143,7 +143,7 @@ const LeftSideView: React.FC = () => {
                 }}
                 autoFocus
                 className="bg-transparent border-none outline-none p-0 text-foreground text-sm font-medium w-fit focus:ring-0"
-                style={{ width: `${Math.max(currentName.length + 1, 5)}ch` }}
+                style={{ width: `${Math.max(nameInput.length + 1, 5)}ch` }}
               />
             ) : (
               <h2
