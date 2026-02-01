@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { UserMenu } from "@/components/user-menu";
 
 import { Button } from "@/components/ui/button";
-import { Logo } from "@/components/logo";
+import { Logo, LogoIcon } from "@/components/logo";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -444,10 +444,10 @@ export default function WorkspacesPage() {
             <div className="w-full">
               {workspaces.length === 0 ? (
                 <div className="text-center py-24 bg-muted/20 rounded-2xl border border-dashed border-border">
-                  <div className="inline-flex size-14 items-center justify-center rounded-2xl bg-muted mb-4">
-                    <Logo className="opacity-20 grayscale" />
+                  <div className="inline-flex size-14 items-center justify-center mb-4">
+                    <LogoIcon size={32} className="opacity-20 grayscale" />
                   </div>
-                  <h3 className="text-sm font-semibold text-foreground">No projects yet</h3>
+                  <h3 className="text-sm font-semibold text-foreground">No workspaces yet</h3>
                   <p className="text-xs text-muted-foreground mt-1 px-10">
                     Get started by creating your first workspace.
                   </p>
