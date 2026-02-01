@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, app_type } = body;
+    const { name, app_type, files } = body;
 
     if (!name) {
       return NextResponse.json({ error: "Missing name" }, { status: 400 });
@@ -67,8 +67,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid app type" }, { status: 400 });
     }
 
-    // Fetch initial files from starters folder
-    const initialFiles = getInitialFiles(template.folder);
+    // If files are not provided (e.g. normal creation), get defaults
+    let initialFiles = files;
+    if (!initialFiles) {
+      initialFiles = getInitialFiles(template.folder);
+    }
 
     const workspace = await prisma.workspace.create({
       data: {

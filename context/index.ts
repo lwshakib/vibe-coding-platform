@@ -26,6 +26,7 @@ export type Workspace = {
   app_type: AppType;
   files: any;
   detectedPaths?: string[];
+  githubRepo?: string | null;
   updatedAt: string;
   createdAt: string;
   messages?: any[];
@@ -58,7 +59,11 @@ interface WorkspaceStore {
   setOpenFiles: (files: string[]) => void;
   addOpenFile: (path: string) => void;
   closeFile: (path: string) => void;
-  updateFiles: (files: any, immediate?: boolean) => Promise<void>;
+  updateFiles: (files: any) => Promise<void>;
+  modifiedFiles: Record<string, string>;
+  markFileAsDirty: (path: string, originalContent: string) => void;
+  saveFile: (path: string) => Promise<void>;
+  discardChanges: (path: string) => void;
   selectedContexts: Array<{
     id: string;
     path: string;
@@ -78,6 +83,9 @@ interface WorkspaceStore {
   setShowExpoQR: (show: boolean) => void;
   expoQRData: string | null;
   setExpoQRData: (data: string | null) => void;
+  syncWithGithub: (changedFile?: any) => Promise<void>;
+  isSyncing: boolean;
+  setIsSyncing: (status: boolean) => void;
   credits: number | null;
   fetchCredits: () => Promise<void>;
 }
@@ -92,6 +100,32 @@ export const useWorkspaceStore = create<WorkspaceStore>((set) => ({
           : workspaces,
     })),
 
+  isSyncing: false,
+  setIsSyncing: (status) => set({ isSyncing: status }),
+  syncWithGithub: async (changedFile) => {
+    const { currentWorkspace, isSyncing, setIsSyncing } = useWorkspaceStore.getState();
+    if (!currentWorkspace?.githubRepo || isSyncing) return;
+
+    try {
+      setIsSyncing(true);
+      const res = await fetch(`/api/workspaces/${currentWorkspace.id}/github/commit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+            commitMessage: "",
+            changedFile 
+        }), 
+      });
+      
+      if (!res.ok) {
+        console.error("Auto-sync failed");
+      }
+    } catch (err) {
+      console.error("GitHub Sync Error:", err);
+    } finally {
+      setIsSyncing(false);
+    }
+  },
   credits: null,
   fetchCredits: async () => {
     try {
@@ -157,24 +191,81 @@ export const useWorkspaceStore = create<WorkspaceStore>((set) => ({
         activeFile: newActiveFile,
       };
     }),
-  updateFiles: async (files, immediate = false) => {
+  updateFiles: async (files) => {
     const currentWorkspace = useWorkspaceStore.getState().currentWorkspace;
-    if (!currentWorkspace) return;
+    const activeFile = useWorkspaceStore.getState().activeFile;
+    if (!currentWorkspace || !activeFile) return;
 
-    // 1. Optimistic update (Immediate local state change)
+    // Store original content if not already dirty
+    const modifiedFiles = useWorkspaceStore.getState().modifiedFiles;
+    if (!modifiedFiles[activeFile]) {
+      const originalContent = currentWorkspace.files[activeFile]?.content || "";
+      set((state) => ({
+        modifiedFiles: {
+          ...state.modifiedFiles,
+          [activeFile]: originalContent,
+        },
+      }));
+    }
+
+    // Update local state
     set((state) => ({
       currentWorkspace: state.currentWorkspace
         ? { ...state.currentWorkspace, files }
         : null,
     }));
+  },
+  modifiedFiles: {},
+  markFileAsDirty: (path, originalContent) => 
+    set((state) => ({
+      modifiedFiles: {
+        ...state.modifiedFiles,
+        [path]: originalContent
+      }
+    })),
+  saveFile: async (path) => {
+    const state = useWorkspaceStore.getState();
+    const currentWorkspace = state.currentWorkspace;
+    if (!currentWorkspace) return;
 
-    // 2. Save to DB (Immediate or Debounced)
-    if (immediate) {
-      debouncedSave.cancel(); // Cancel any pending debounced calls
-      await saveToDb(currentWorkspace.id, files);
-    } else {
-      debouncedSave(currentWorkspace.id, files);
+    const oldContent = state.modifiedFiles[path];
+    const newContent = currentWorkspace.files[path]?.content || "";
+
+    await saveToDb(currentWorkspace.id, currentWorkspace.files);
+    
+    set((state) => {
+      const newModifiedFiles = { ...state.modifiedFiles };
+      delete newModifiedFiles[path];
+      return { modifiedFiles: newModifiedFiles };
+    });
+
+    // Trigger Github Sync if linked
+    if (currentWorkspace.githubRepo) {
+        setTimeout(() => {
+            useWorkspaceStore.getState().syncWithGithub({
+                path,
+                oldContent,
+                newContent
+            });
+        }, 500);
     }
+  },
+  discardChanges: (path) => {
+    set((state) => {
+      if (!state.currentWorkspace || !state.modifiedFiles[path]) return state;
+      
+      const originalContent = state.modifiedFiles[path];
+      const newFiles = { ...state.currentWorkspace.files };
+      newFiles[path] = { ...newFiles[path], content: originalContent };
+      
+      const newModifiedFiles = { ...state.modifiedFiles };
+      delete newModifiedFiles[path];
+      
+      return {
+        currentWorkspace: { ...state.currentWorkspace, files: newFiles },
+        modifiedFiles: newModifiedFiles
+      };
+    });
   },
   selectedContexts: [],
   addSelectedContext: (context) => set((state) => ({

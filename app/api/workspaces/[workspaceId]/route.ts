@@ -37,3 +37,52 @@ export async function GET(
     );
   }
 }
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ workspaceId: string }> }
+) {
+  try {
+    const { workspaceId } = await params;
+    const body = await request.json();
+    const { name } = body;
+
+    if (!name) {
+      return NextResponse.json({ error: "Name is required" }, { status: 400 });
+    }
+
+    const workspace = await prisma.workspace.update({
+      where: { id: workspaceId },
+      data: { name },
+    });
+
+    return NextResponse.json({ workspace });
+  } catch (error) {
+    console.error("[WORKSPACE_PATCH]", error);
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ workspaceId: string }> }
+) {
+  try {
+    const { workspaceId } = await params;
+
+    await prisma.workspace.delete({
+      where: { id: workspaceId },
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("[WORKSPACE_DELETE]", error);
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 }
+    );
+  }
+}

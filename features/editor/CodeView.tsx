@@ -16,6 +16,14 @@ import { motion, AnimatePresence } from "motion/react";
 import { EditorView } from "@codemirror/view";
 import { Sparkles, MessageSquarePlus, PencilLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const lightTheme = createTheme({
   theme: "light",
@@ -107,6 +115,10 @@ export default function CodeView() {
     closeFile,
     setChatInput,
     addSelectedContext,
+    modifiedFiles,
+    saveFile,
+    discardChanges,
+    syncWithGithub
   } = useWorkspaceStore();
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -123,7 +135,45 @@ export default function CodeView() {
     isStreaming: boolean;
     selection: NonNullable<typeof selection>;
   } | null>(null);
+  const [fileToClose, setFileToClose] = useState<string | null>(null);
   const editorRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+        e.preventDefault();
+        if (activeFile) {
+          saveFile(activeFile);
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [activeFile, saveFile]);
+
+  const handleCloseRequest = (file: string) => {
+    if (modifiedFiles[file]) {
+      setFileToClose(file);
+    } else {
+      closeFile(file);
+    }
+  };
+
+  const handleSaveAndClose = async () => {
+    if (fileToClose) {
+      await saveFile(fileToClose);
+      closeFile(fileToClose);
+      setFileToClose(null);
+    }
+  };
+
+  const handleDiscardAndClose = () => {
+    if (fileToClose) {
+      discardChanges(fileToClose);
+      closeFile(fileToClose);
+      setFileToClose(null);
+    }
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -211,7 +261,10 @@ export default function CodeView() {
   const handleQuickEdit = async () => {
     if (!quickEdit || !activeFile || !currentWorkspace) return;
 
+    const originalFullContent = currentWorkspace.files[activeFile].content;
     setQuickEdit((prev) => (prev ? { ...prev, isStreaming: true } : null));
+
+    let finalContent = originalFullContent;
 
     try {
       const response = await fetch("/api/quick-edit", {
@@ -250,7 +303,17 @@ export default function CodeView() {
           ...newFiles[activeFile],
           content: updatedContent,
         };
+        finalContent = updatedContent;
         updateFiles(newFiles);
+      }
+
+      // Sync after successful quick edit
+      if (currentWorkspace.githubRepo) {
+        syncWithGithub({
+            path: activeFile,
+            oldContent: originalFullContent,
+            newContent: finalContent
+        });
       }
     } catch (error) {
       console.error("Quick edit error:", error);
@@ -334,17 +397,33 @@ export default function CodeView() {
           >
             {getFileIcon(file)}
             <span className="truncate flex-1">{file.split("/").pop()}</span>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                closeFile(file);
-              }}
-              className={`opacity-0 group-hover:opacity-100 hover:bg-muted-foreground/20 p-0.5 rounded-sm transition-all ${
-                activeFile === file ? "opacity-100" : ""
-              }`}
-            >
-              <X className="w-3 h-3" />
-            </button>
+            
+            <div className="flex items-center justify-center w-5 h-5 relative">
+              {modifiedFiles[file] ? (
+                <div 
+                  className={`w-2 h-2 rounded-full transition-opacity group-hover:opacity-0 ${
+                    resolvedTheme === "dark" ? "bg-white" : "bg-[#ffd700]"
+                  }`}
+                  style={{ 
+                    backgroundColor: resolvedTheme === "dark" ? "#e0e0e0" : "#fbbf24",
+                    boxShadow: "0 0 8px rgba(251, 191, 36, 0.4)"
+                  }} 
+                />
+              ) : null}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleCloseRequest(file);
+                }}
+                className={`
+                  absolute inset-0 flex items-center justify-center hover:bg-muted-foreground/20 rounded-sm transition-all
+                  ${modifiedFiles[file] ? "opacity-0 group-hover:opacity-100" : "opacity-0 group-hover:opacity-100"}
+                  ${!modifiedFiles[file] && activeFile === file ? "opacity-100" : ""}
+                `}
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
           </div>
         ))}
       </div>
@@ -533,6 +612,44 @@ export default function CodeView() {
           </div>
         )}
       </div>
+      
+      <Dialog open={!!fileToClose} onOpenChange={(open) => !open && setFileToClose(null)}>
+        <DialogContent className="sm:max-w-[425px] bg-background border-border">
+          <DialogHeader>
+            <DialogTitle>Unsaved Changes</DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              Do you want to save the changes you made to <span className="font-semibold text-foreground">{fileToClose?.split('/').pop()}</span>?
+              Your changes will be lost if you don't save them.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:gap-0">
+            <div className="flex-1 flex gap-2">
+              <Button 
+                variant="outline" 
+                onClick={handleDiscardAndClose}
+                className="flex-1 sm:flex-none border-border hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30"
+              >
+                Don't Save
+              </Button>
+            </div>
+            <div className="flex gap-2">
+              <Button 
+                variant="ghost" 
+                onClick={() => setFileToClose(null)}
+                className="text-muted-foreground"
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleSaveAndClose}
+                className="bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+              >
+                Save
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

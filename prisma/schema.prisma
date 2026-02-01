@@ -103,6 +103,7 @@ model Workspace {
   app_type      AppType  
   files         Json
   detectedPaths Json?
+  githubRepo    String?
   messages      Message[]
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt

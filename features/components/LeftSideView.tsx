@@ -17,20 +17,23 @@ import { toast } from "sonner";
 
 const LeftSideView: React.FC = () => {
   const router = useRouter();
-  const { currentWorkspace } = useWorkspaceStore();
   const { data: session } = authClient.useSession();
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameInput, setNameInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const { 
+    currentWorkspace,
     updateFiles, 
     setStreamingStatus, 
     setPendingPreviewRoute, 
     selectedContexts, 
     removeSelectedContext, 
-    fetchCredits 
+    fetchCredits,
+    syncWithGithub
   } = useWorkspaceStore();
+
+  const sessionChanges = useRef<Record<string, { path: string, oldContent: string, newContent: string }>>({});
 
   const {
     messages,
@@ -40,6 +43,12 @@ const LeftSideView: React.FC = () => {
   } = useChat({
     onFinish: () => {
       fetchCredits();
+      
+      const changes = Object.values(sessionChanges.current);
+      if (changes.length > 0) {
+        syncWithGithub(changes);
+        sessionChanges.current = {}; // Reset for next time
+      }
     },
     onError:()=>{
       toast.error("Something went wrong", {
@@ -108,6 +117,13 @@ const LeftSideView: React.FC = () => {
             if (newContent !== originalContent) {
               mergedFiles[path] = { content: newContent };
               hasGlobalChanges = true;
+
+              // Track changes for sync
+              sessionChanges.current[path] = {
+                path,
+                oldContent: originalContent,
+                newContent
+              };
             }
           });
 
