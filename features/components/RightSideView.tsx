@@ -151,6 +151,9 @@ const RightSideView: React.FC = () => {
       const data = await res.json();
       if (data.workspace) {
         useWorkspaceStore.getState().setCurrentWorkspace(data.workspace);
+        if (full_name === "") {
+            setIsGithubPopoverOpen(false);
+        }
       }
     } catch (err) {
       console.error(err);
@@ -357,13 +360,33 @@ const RightSideView: React.FC = () => {
                             </div>
                         </div>
 
-                        <Button 
-                            variant="ghost" 
-                            className="w-full h-9 text-[11px] font-bold uppercase tracking-wider text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl transition-all"
-                            onClick={() => handleLinkRepo("")}
-                        >
-                            Disconnect Repository
-                        </Button>
+                         <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button 
+                                    variant="ghost" 
+                                    className="w-full h-9 text-[11px] font-bold uppercase tracking-wider text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl transition-all"
+                                >
+                                    Disconnect Repository
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent className="bg-background border-border">
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle className="text-foreground">Are you sure?</AlertDialogTitle>
+                                    <AlertDialogDescription className="text-muted-foreground">
+                                        This will unlink the GitHub repository from your workspace.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel className="bg-muted border-border text-foreground hover:bg-muted/80">Cancel</AlertDialogCancel>
+                                    <AlertDialogAction 
+                                        onClick={() => handleLinkRepo("")}
+                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    >
+                                        Disconnect
+                                    </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
                     </div>
                   </div>
                 ) : (
