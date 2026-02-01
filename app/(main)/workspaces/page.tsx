@@ -106,7 +106,7 @@ const WorkspacesSkeleton = () => (
 );
 
 export default function WorkspacesPage() {
-  const { workspaces, setWorkspaces } = useWorkspaceStore();
+  const { workspaces, setWorkspaces, credits, fetchCredits } = useWorkspaceStore();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -191,7 +191,8 @@ export default function WorkspacesPage() {
   useEffect(() => {
     loadWorkspaces();
     generateNames();
-  }, []);
+    fetchCredits();
+  }, [fetchCredits]);
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground w-full">
@@ -201,7 +202,9 @@ export default function WorkspacesPage() {
           <Logo className="text-foreground" />
         </div>
         <div className="flex items-center gap-4 text-xs text-muted-foreground">
-          <span className="hidden text-[11px] sm:inline">Limited credits</span>
+          <span className="hidden text-[11px] sm:inline">
+            {credits !== null ? `${(credits / 1000).toFixed(1)}k credits remaining` : "Limited credits"}
+          </span>
           <UserMenu />
           <Dialog
             open={createDialogOpen}

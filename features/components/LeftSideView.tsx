@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { parseVibeArtifact } from "@/lib/parseVibeArtifact";
 import { LogoIcon } from "@/components/logo";
 import { authClient } from "@/lib/auth-client";
+import { toast } from "sonner";
 
 const LeftSideView: React.FC = () => {
   const router = useRouter();
@@ -22,15 +23,30 @@ const LeftSideView: React.FC = () => {
   const [nameInput, setNameInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  const { 
+    updateFiles, 
+    setStreamingStatus, 
+    setPendingPreviewRoute, 
+    selectedContexts, 
+    removeSelectedContext, 
+    fetchCredits 
+  } = useWorkspaceStore();
+
   const {
     messages,
     sendMessage,
     setMessages: setChatMessages,
     status,
-  } = useChat({});
-
-  const { updateFiles, setStreamingStatus, setPendingPreviewRoute, selectedContexts, removeSelectedContext } =
-    useWorkspaceStore();
+  } = useChat({
+    onFinish: () => {
+      fetchCredits();
+    },
+    onError:()=>{
+      toast.error("Something went wrong", {
+        description: "Please try again later.",
+      });
+    }
+  });
 
   // Sync messages when workspace changes (e.g. navigating between workspaces)
   useEffect(() => {

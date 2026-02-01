@@ -2,11 +2,29 @@ import { GeminiModel } from "@/llm/model";
 import { stepCountIs, streamText } from "ai";
 import axios from "axios";
 import { z } from "zod";
+import { consumeCredits } from "@/lib/credits";
+import { NextResponse } from "next/server";
 
 export const maxDuration = 30;
 
 export async function POST(req: Request) {
-  const { instructions, selectedText, fileName, fullContent, fromLine, toLine } = await req.json();
+  try {
+    const userHeader = req.headers.get("x-user");
+    if (!userHeader) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const sessionUser = JSON.parse(userHeader);
+    const userId = sessionUser.id;
+
+    // Consume credits before generating response
+    try {
+      await consumeCredits(userId, 500);
+    } catch (e: any) {
+      return NextResponse.json({ error: e.message || "Insufficient credits" }, { status: 403 });
+    }
+
+    const { instructions, selectedText, fileName, fullContent, fromLine, toLine } = await req.json();
 
   const prompt = `
     You are an expert code editor. Your task is to perform a "Quick Edit" on a specific selection of code.
@@ -76,5 +94,9 @@ export async function POST(req: Request) {
     stopWhen: stepCountIs(5)
   });
 
-  return result.toTextStreamResponse();
+    return result.toTextStreamResponse();
+  } catch (error: any) {
+    console.error("Quick Edit error:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 }

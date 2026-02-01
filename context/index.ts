@@ -77,6 +77,8 @@ interface WorkspaceStore {
   setShowExpoQR: (show: boolean) => void;
   expoQRData: string | null;
   setExpoQRData: (data: string | null) => void;
+  credits: number | null;
+  fetchCredits: () => Promise<void>;
 }
 
 export const useWorkspaceStore = create<WorkspaceStore>((set) => ({
@@ -88,6 +90,19 @@ export const useWorkspaceStore = create<WorkspaceStore>((set) => ({
           ? workspaces(state.workspaces)
           : workspaces,
     })),
+
+  credits: null,
+  fetchCredits: async () => {
+    try {
+      const res = await fetch("/api/user/credits");
+      if (res.ok) {
+        const data = await res.json();
+        set({ credits: data.credits });
+      }
+    } catch (err) {
+      console.error("Failed to fetch credits:", err);
+    }
+  },
 
   // SingleStack Implementation
   messages: [],

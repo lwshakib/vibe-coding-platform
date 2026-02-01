@@ -58,6 +58,16 @@ export function UserMenu() {
         
         <div className="py-1">
           <DropdownMenuItem
+            className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer hover:bg-muted font-medium text-sm transition-colors group mb-0.5"
+            onClick={() => router.push("/account")}
+          >
+            <div className="flex size-8 items-center justify-center rounded-lg bg-blue-500/10 text-blue-500 group-hover:bg-blue-500/20 transition-colors">
+              <User className="size-4" />
+            </div>
+            <span className="flex-1">Account</span>
+          </DropdownMenuItem>
+
+          <DropdownMenuItem
             className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer hover:bg-muted font-medium text-sm transition-colors group"
             onClick={() => setTheme(isDark ? "light" : "dark")}
           >
@@ -69,6 +79,7 @@ export function UserMenu() {
 
           <DropdownMenuItem
             className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer hover:bg-muted font-medium text-sm transition-colors group mt-0.5"
+            onClick={() => router.push("/settings")}
           >
             <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary/20 transition-colors">
               <Sparkles className="size-4" />

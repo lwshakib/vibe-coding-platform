@@ -12,7 +12,11 @@ interface AiInputProps {
 const AiInput: React.FC<AiInputProps> = ({ onSend }) => {
   const [files, setFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { currentWorkspace, chatInput, setChatInput, selectedContexts, removeSelectedContext } = useWorkspaceStore();
+  const { currentWorkspace, chatInput, setChatInput, selectedContexts, removeSelectedContext, credits, fetchCredits } = useWorkspaceStore();
+
+  React.useEffect(() => {
+    fetchCredits();
+  }, [fetchCredits]);
 
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -40,7 +44,7 @@ const AiInput: React.FC<AiInputProps> = ({ onSend }) => {
         <div className="relative h-6.5">
           <div className="bg-muted absolute top-0 left-2 flex w-[calc(100%-1rem)] justify-between items-center rounded-t-lg border border-border px-2 py-1 text-xs opacity-100 backdrop-blur transition-opacity duration-350">
             <span className="text-muted-foreground">
-              150K daily tokens remaining.
+              {credits !== null ? `${(credits / 1000).toFixed(1)}K` : "---"} daily tokens remaining.
             </span>
             <button className="text-primary font-semibold hover:underline">
               Upgrade to Pro
