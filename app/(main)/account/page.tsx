@@ -5,7 +5,6 @@ import { authClient } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
@@ -200,225 +199,202 @@ export default function AccountPage() {
           </div>
         </div>
 
-        <div className="max-w-4xl mx-auto px-4 mt-8">
-          <Tabs defaultValue="profile" className="w-full">
-            <TabsList className="flex items-center gap-8 mb-12 bg-transparent border-b border-border/10 h-auto p-0 rounded-none w-full">
-              <TabsTrigger 
-                value="profile" 
-                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-1 pb-4 text-sm font-bold uppercase tracking-widest text-muted-foreground data-[state=active]:text-foreground transition-all"
-              >
-                Profile
-              </TabsTrigger>
-              <TabsTrigger 
-                value="security" 
-                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-1 pb-4 text-sm font-bold uppercase tracking-widest text-muted-foreground data-[state=active]:text-foreground transition-all"
-              >
-                Security
-              </TabsTrigger>
-              <TabsTrigger 
-                value="sessions" 
-                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-1 pb-4 text-sm font-bold uppercase tracking-widest text-muted-foreground data-[state=active]:text-foreground transition-all"
-              >
-                Sessions
-              </TabsTrigger>
-            </TabsList>
-
-            {/* Profile Tab */}
-            <TabsContent value="profile" className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-              <div className="space-y-12">
-                <div className="grid md:grid-cols-3 gap-8">
-                    <div className="md:col-span-1">
-                      <h3 className="text-lg font-bold mb-1">Identity</h3>
-                      <p className="text-sm text-muted-foreground leading-relaxed">How others see you across the platform.</p>
-                    </div>
-                    <div className="md:col-span-2 space-y-6 max-w-xl">
-                      <div className="space-y-2">
-                        <label className="text-sm font-bold text-foreground/80 tracking-tight">Display Name</label>
-                        <Input 
-                          value={name} 
-                          onChange={(e) => setName(e.target.value)}
-                          placeholder="Enter your name"
-                          className="h-12 rounded-xl border-border bg-muted/20 focus:bg-background focus:ring-primary/20 transition-all font-medium"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-sm font-bold text-foreground/80 tracking-tight">Email Address</label>
-                        <Input 
-                          value={session.user.email} 
-                          disabled 
-                          className="h-12 rounded-xl border-border bg-muted/40 text-muted-foreground cursor-not-allowed font-medium"
-                        />
-                        <p className="text-[11px] font-medium text-muted-foreground/60 ml-1 italic">Email can only be changed via identity provider.</p>
-                      </div>
-
-                      <div className="pt-2">
-                        <Button 
-                          onClick={handleUpdateProfile} 
-                          disabled={isUpdatingProfile || name === session.user.name}
-                          className="rounded-xl px-10 font-bold shadow-lg h-11"
-                        >
-                          {isUpdatingProfile && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                          Save Changes
-                        </Button>
-                      </div>
-                    </div>
-                </div>
-              </div>
-            </TabsContent>
-
-            {/* Security Tab */}
-            <TabsContent value="security" className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-16">
+        <div className="max-w-4xl mx-auto px-4 mt-8 space-y-24">
+          {/* Profile Section */}
+          <section id="profile" className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div className="space-y-12">
               <div className="grid md:grid-cols-3 gap-8">
-                <div className="md:col-span-1">
-                  <h3 className="text-lg font-bold mb-1">Password</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">Protect your account with a unique password.</p>
-                </div>
-                
-                <div className="md:col-span-2 space-y-6 max-w-xl">
-                  <div className="space-y-4">
+                  <div className="md:col-span-1">
+                    <h3 className="text-lg font-bold mb-1">Identity</h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed">How others see you across the platform.</p>
+                  </div>
+                  <div className="md:col-span-2 space-y-6 max-w-xl">
                     <div className="space-y-2">
-                      <label className="text-sm font-bold text-foreground/80">Current Password</label>
+                      <label className="text-sm font-bold text-foreground/80 tracking-tight">Display Name</label>
+                      <Input 
+                        value={name} 
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="Enter your name"
+                        className="h-12 rounded-xl border-border bg-muted/20 focus:bg-background focus:ring-primary/20 transition-all font-medium"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-bold text-foreground/80 tracking-tight">Email Address</label>
+                      <Input 
+                        value={session.user.email} 
+                        disabled 
+                        className="h-12 rounded-xl border-border bg-muted/40 text-muted-foreground cursor-not-allowed font-medium"
+                      />
+                      <p className="text-[11px] font-medium text-muted-foreground/60 ml-1 italic">Email can only be changed via identity provider.</p>
+                    </div>
+
+                    <div className="pt-2">
+                      <Button 
+                        onClick={handleUpdateProfile} 
+                        disabled={isUpdatingProfile || name === session.user.name}
+                        className="rounded-xl px-10 font-bold shadow-lg h-11"
+                      >
+                        {isUpdatingProfile && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                        Save Changes
+                      </Button>
+                    </div>
+                  </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Security Section */}
+          <section id="security" className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-16 border-t border-border/10 pt-16">
+            <div className="grid md:grid-cols-3 gap-8">
+              <div className="md:col-span-1">
+                <h3 className="text-lg font-bold mb-1">Password</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">Protect your account with a unique password.</p>
+              </div>
+              
+              <div className="md:col-span-2 space-y-6 max-w-xl">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-foreground/80">Current Password</label>
+                    <Input 
+                      type="password" 
+                      value={currentPassword} 
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      className="h-12 rounded-xl border-border bg-muted/20"
+                    />
+                  </div>
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-bold text-foreground/80">New Password</label>
                       <Input 
                         type="password" 
-                        value={currentPassword} 
-                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        value={newPassword} 
+                        onChange={(e) => setNewPassword(e.target.value)}
                         className="h-12 rounded-xl border-border bg-muted/20"
                       />
                     </div>
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <label className="text-sm font-bold text-foreground/80">New Password</label>
-                        <Input 
-                          type="password" 
-                          value={newPassword} 
-                          onChange={(e) => setNewPassword(e.target.value)}
-                          className="h-12 rounded-xl border-border bg-muted/20"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-sm font-bold text-foreground/80">Confirm New</label>
-                        <Input 
-                          type="password" 
-                          value={confirmPassword} 
-                          onChange={(e) => setConfirmPassword(e.target.value)}
-                          className="h-12 rounded-xl border-border bg-muted/20"
-                        />
-                      </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-bold text-foreground/80">Confirm New</label>
+                      <Input 
+                        type="password" 
+                        value={confirmPassword} 
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        className="h-12 rounded-xl border-border bg-muted/20"
+                      />
                     </div>
                   </div>
-                  <div className="pt-2">
-                    <Button 
-                      onClick={handleUpdatePassword} 
-                      disabled={isUpdatingPassword || !currentPassword || !newPassword}
-                      className="rounded-xl px-10 font-bold shadow-lg h-11"
-                    >
-                      {isUpdatingPassword && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                      Update Password
-                    </Button>
-                  </div>
                 </div>
-              </div>
-
-              <div className="grid md:grid-cols-3 gap-8 border-t border-border/10 pt-16">
-                <div className="md:col-span-1">
-                  <h3 className="text-lg font-bold mb-1">Connected</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">Linked accounts for authentication.</p>
-                </div>
-                
-                <div className="md:col-span-2 space-y-2 max-w-xl">
-                    <div className="flex items-center justify-between py-4 border-b border-border/10 group">
-                        <div className="flex items-center gap-4">
-                            <Chrome className="size-5 text-muted-foreground group-hover:text-foreground transition-colors" />
-                            <div>
-                                <p className="text-sm font-bold">Google Account</p>
-                                <p className="text-[11px] text-muted-foreground">Primary login provider</p>
-                            </div>
-                        </div>
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-500">Connected</span>
-                    </div>
-
-                    <div className="flex items-center justify-between py-4 border-b border-border/10 group opacity-60">
-                        <div className="flex items-center gap-4">
-                            <Github className="size-5 text-muted-foreground group-hover:text-foreground transition-colors" />
-                            <div>
-                                <p className="text-sm font-bold">GitHub</p>
-                                <p className="text-[11px] text-muted-foreground">Sync your repositories</p>
-                            </div>
-                        </div>
-                        <Button variant="link" className="text-[11px] font-bold uppercase tracking-widest h-auto p-0 text-primary">Connect</Button>
-                    </div>
-                </div>
-              </div>
-
-              <div className="grid md:grid-cols-3 gap-8 border-t border-border/10 pt-16">
-                <div className="md:col-span-1">
-                  <h3 className="text-lg font-bold text-destructive mb-1">Account Deletion</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">Wipe all your data from Vibe permanently.</p>
-                </div>
-                <div className="md:col-span-2 space-y-6 max-w-xl">
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    Once you delete your account, there is no going back. All projects, credits, and history will be wiped.
-                  </p>
+                <div className="pt-2">
                   <Button 
-                    variant="ghost" 
-                    onClick={handleDeleteAccount}
-                    className="h-11 rounded-xl px-10 font-bold text-destructive hover:bg-destructive/10 border border-destructive/20"
+                    onClick={handleUpdatePassword} 
+                    disabled={isUpdatingPassword || !currentPassword || !newPassword}
+                    className="rounded-xl px-10 font-bold shadow-lg h-11"
                   >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Delete Account
+                    {isUpdatingPassword && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                    Update Password
                   </Button>
                 </div>
               </div>
-            </TabsContent>
+            </div>
 
-            {/* Sessions Tab */}
-            <TabsContent value="sessions" className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-              <div className="grid md:grid-cols-3 gap-8">
-                <div className="md:col-span-1">
-                  <h3 className="text-lg font-bold mb-1">Active Devices</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">Currently active logins for your account.</p>
-                </div>
-                
-                <div className="md:col-span-2 space-y-1 max-w-xl">
-                  {isSessionsLoading ? (
-                    <div className="py-10"><Loader2 className="w-6 h-6 animate-spin text-primary/40" /></div>
-                  ) : (
-                    <div className="divide-y divide-border/10">
-                      {sessions?.map((s) => (
-                        <div key={s.token} className="flex items-center justify-between py-5 group">
-                          <div className="flex items-center gap-5">
-                            <div className="flex size-10 items-center justify-center rounded-xl bg-muted/30 text-muted-foreground group-hover:text-primary transition-colors">
-                              {s.userAgent?.toLowerCase().includes("mobile") ? <Smartphone className="w-5 h-5" /> : <Monitor className="w-5 h-5" />}
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-3">
-                                <span className="text-sm font-bold">{s.userAgent || "Unknown Device"}</span>
-                                {s.token === session.session.token && (
-                                  <span className="text-[9px] font-bold uppercase tracking-widest text-primary bg-primary/5 px-2 py-0.5 rounded-full border border-primary/10">Active Now</span>
-                                )}
-                              </div>
-                              <p className="text-[11px] text-muted-foreground font-medium mt-1 uppercase tracking-tight">{s.ipAddress || "Unknown IP"} • {new Date(s.createdAt).toLocaleDateString()}</p>
-                            </div>
-                          </div>
-                          {s.token !== session.session.token && (
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="text-muted-foreground hover:text-destructive hover:bg-destructive/5 rounded-lg h-9 w-9 p-0"
-                              onClick={() => handleRevokeSession(s.token)}
-                              disabled={revokingId === s.token}
-                            >
-                              {revokingId === s.token ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogOut className="w-4 h-4" />}
-                            </Button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+            <div className="grid md:grid-cols-3 gap-8 border-t border-border/10 pt-16">
+              <div className="md:col-span-1">
+                <h3 className="text-lg font-bold mb-1">Connected</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">Linked accounts for authentication.</p>
               </div>
-            </TabsContent>
-          </Tabs>
+              
+              <div className="md:col-span-2 space-y-2 max-w-xl">
+                  <div className="flex items-center justify-between py-4 border-b border-border/10 group">
+                      <div className="flex items-center gap-4">
+                          <Chrome className="size-5 text-muted-foreground group-hover:text-foreground transition-colors" />
+                          <div>
+                              <p className="text-sm font-bold">Google Account</p>
+                              <p className="text-[11px] text-muted-foreground">Primary login provider</p>
+                          </div>
+                      </div>
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-500">Connected</span>
+                  </div>
+
+                  <div className="flex items-center justify-between py-4 border-b border-border/10 group opacity-60">
+                      <div className="flex items-center gap-4">
+                          <Github className="size-5 text-muted-foreground group-hover:text-foreground transition-colors" />
+                          <div>
+                              <p className="text-sm font-bold">GitHub</p>
+                              <p className="text-[11px] text-muted-foreground">Sync your repositories</p>
+                          </div>
+                      </div>
+                      <Button variant="link" className="text-[11px] font-bold uppercase tracking-widest h-auto p-0 text-primary">Connect</Button>
+                  </div>
+              </div>
+            </div>
+
+            <div className="grid md:grid-cols-3 gap-8 border-t border-border/10 pt-16">
+              <div className="md:col-span-1">
+                <h3 className="text-lg font-bold text-destructive mb-1">Account Deletion</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">Wipe all your data from Vibe permanently.</p>
+              </div>
+              <div className="md:col-span-2 space-y-6 max-w-xl">
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Once you delete your account, there is no going back. All projects, credits, and history will be wiped.
+                </p>
+                <Button 
+                  variant="ghost" 
+                  onClick={handleDeleteAccount}
+                  className="h-11 rounded-xl px-10 font-bold text-destructive hover:bg-destructive/10 border border-destructive/20"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete Account
+                </Button>
+              </div>
+            </div>
+          </section>
+
+          {/* Sessions Section */}
+          <section id="sessions" className="animate-in fade-in slide-in-from-bottom-2 duration-300 border-t border-border/10 pt-16">
+            <div className="grid md:grid-cols-3 gap-8">
+              <div className="md:col-span-1">
+                <h3 className="text-lg font-bold mb-1">Active Devices</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">Currently active logins for your account.</p>
+              </div>
+              
+              <div className="md:col-span-2 space-y-1 max-w-xl">
+                {isSessionsLoading ? (
+                  <div className="py-10"><Loader2 className="w-6 h-6 animate-spin text-primary/40" /></div>
+                ) : (
+                  <div className="divide-y divide-border/10">
+                    {sessions?.map((s) => (
+                      <div key={s.token} className="flex items-center justify-between py-5 group">
+                        <div className="flex items-center gap-5">
+                          <div className="flex size-10 items-center justify-center rounded-xl bg-muted/30 text-muted-foreground group-hover:text-primary transition-colors">
+                            {s.userAgent?.toLowerCase().includes("mobile") ? <Smartphone className="w-5 h-5" /> : <Monitor className="w-5 h-5" />}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-3">
+                              <span className="text-sm font-bold">{s.userAgent || "Unknown Device"}</span>
+                              {s.token === session.session.token && (
+                                <span className="text-[9px] font-bold uppercase tracking-widest text-primary bg-primary/5 px-2 py-0.5 rounded-full border border-primary/10">Active Now</span>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-muted-foreground font-medium mt-1 uppercase tracking-tight">{s.ipAddress || "Unknown IP"} • {new Date(s.createdAt).toLocaleDateString()}</p>
+                          </div>
+                        </div>
+                        {s.token !== session.session.token && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-muted-foreground hover:text-destructive hover:bg-destructive/5 rounded-lg h-9 w-9 p-0"
+                            onClick={() => handleRevokeSession(s.token)}
+                            disabled={revokingId === s.token}
+                          >
+                            {revokingId === s.token ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogOut className="w-4 h-4" />}
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
         </div>
       </main>
     </div>
