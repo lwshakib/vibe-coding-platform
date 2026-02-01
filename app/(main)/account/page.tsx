@@ -176,8 +176,8 @@ export default function AccountPage() {
 
       <main className="flex-1 w-full pb-20 font-inter">
         {/* Profile Intro */}
-        <div className="max-w-4xl mx-auto px-4 pt-10 pb-8 border-b border-border/10">
-          <div className="flex flex-col md:flex-row md:items-top gap-6">
+        <div className="max-w-5xl mx-auto px-6 pt-12 pb-10 border-b border-border/5">
+          <div className="flex flex-col md:flex-row md:items-center gap-8">
             <Avatar className="h-24 w-24 border-4 border-muted shadow-xl">
               <AvatarImage src={session.user.image || ""} />
               <AvatarFallback className="text-2xl font-bold bg-primary/10 text-primary uppercase">
@@ -199,18 +199,18 @@ export default function AccountPage() {
           </div>
         </div>
 
-        <div className="max-w-4xl mx-auto px-4 mt-8 space-y-24">
+        <div className="max-w-5xl mx-auto px-6 mt-12 space-y-32">
           {/* Profile Section */}
-          <section id="profile" className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+          <section id="profile" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="space-y-12">
-              <div className="grid md:grid-cols-3 gap-8">
-                  <div className="md:col-span-1">
-                    <h3 className="text-lg font-bold mb-1">Identity</h3>
+              <div className="grid lg:grid-cols-3 gap-12">
+                  <div className="lg:col-span-1">
+                    <h3 className="text-xl font-bold mb-2 tracking-tight">Identity</h3>
                     <p className="text-sm text-muted-foreground leading-relaxed">How others see you across the platform.</p>
                   </div>
-                  <div className="md:col-span-2 space-y-6 max-w-xl">
-                    <div className="space-y-2">
-                      <label className="text-sm font-bold text-foreground/80 tracking-tight">Display Name</label>
+                  <div className="lg:col-span-2 space-y-8">
+                    <div className="space-y-3">
+                      <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground/80 ml-1">Display Name</label>
                       <Input 
                         value={name} 
                         onChange={(e) => setName(e.target.value)}
@@ -218,8 +218,8 @@ export default function AccountPage() {
                         className="h-12 rounded-xl border-border bg-muted/20 focus:bg-background focus:ring-primary/20 transition-all font-medium"
                       />
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-bold text-foreground/80 tracking-tight">Email Address</label>
+                      <div className="space-y-3">
+                        <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground/80 ml-1">Email Address</label>
                       <Input 
                         value={session.user.email} 
                         disabled 
@@ -244,41 +244,41 @@ export default function AccountPage() {
           </section>
 
           {/* Security Section */}
-          <section id="security" className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-16 border-t border-border/10 pt-16">
-            <div className="grid md:grid-cols-3 gap-8">
-              <div className="md:col-span-1">
-                <h3 className="text-lg font-bold mb-1">Password</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">Protect your account with a unique password.</p>
+          <section id="security" className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-24 border-t border-border/5 pt-20">
+            <div className="grid lg:grid-cols-3 gap-12">
+              <div className="lg:col-span-1">
+                <h3 className="text-xl font-bold mb-2 tracking-tight">Security</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">Protect your account with a unique password and manage linked accounts.</p>
               </div>
               
-              <div className="md:col-span-2 space-y-6 max-w-xl">
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-foreground/80">Current Password</label>
+              <div className="lg:col-span-2 space-y-10">
+                <div className="space-y-6">
+                  <div className="space-y-3">
+                    <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground/80 ml-1">Current Password</label>
                     <Input 
                       type="password" 
                       value={currentPassword} 
                       onChange={(e) => setCurrentPassword(e.target.value)}
-                      className="h-12 rounded-xl border-border bg-muted/20"
+                      className="h-12 rounded-xl border-border bg-muted/20 focus:bg-background transition-colors"
                     />
                   </div>
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-sm font-bold text-foreground/80">New Password</label>
+                  <div className="grid sm:grid-cols-2 gap-6">
+                    <div className="space-y-3">
+                      <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground/80 ml-1">New Password</label>
                       <Input 
                         type="password" 
                         value={newPassword} 
                         onChange={(e) => setNewPassword(e.target.value)}
-                        className="h-12 rounded-xl border-border bg-muted/20"
+                        className="h-12 rounded-xl border-border bg-muted/20 focus:bg-background transition-colors"
                       />
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-bold text-foreground/80">Confirm New</label>
+                    <div className="space-y-3">
+                      <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground/80 ml-1">Confirm New</label>
                       <Input 
                         type="password" 
                         value={confirmPassword} 
                         onChange={(e) => setConfirmPassword(e.target.value)}
-                        className="h-12 rounded-xl border-border bg-muted/20"
+                        className="h-12 rounded-xl border-border bg-muted/20 focus:bg-background transition-colors"
                       />
                     </div>
                   </div>
@@ -296,13 +296,13 @@ export default function AccountPage() {
               </div>
             </div>
 
-            <div className="grid md:grid-cols-3 gap-8 border-t border-border/10 pt-16">
-              <div className="md:col-span-1">
-                <h3 className="text-lg font-bold mb-1">Connected</h3>
+            <div className="grid lg:grid-cols-3 gap-12 border-t border-border/5 pt-20">
+              <div className="lg:col-span-1">
+                <h3 className="text-xl font-bold mb-2 tracking-tight">Connected</h3>
                 <p className="text-sm text-muted-foreground leading-relaxed">Linked accounts for authentication.</p>
               </div>
               
-              <div className="md:col-span-2 space-y-2 max-w-xl">
+              <div className="lg:col-span-2 space-y-3">
                   <div className="flex items-center justify-between py-4 border-b border-border/10 group">
                       <div className="flex items-center gap-4">
                           <Chrome className="size-5 text-muted-foreground group-hover:text-foreground transition-colors" />
@@ -327,15 +327,17 @@ export default function AccountPage() {
               </div>
             </div>
 
-            <div className="grid md:grid-cols-3 gap-8 border-t border-border/10 pt-16">
-              <div className="md:col-span-1">
-                <h3 className="text-lg font-bold text-destructive mb-1">Account Deletion</h3>
+            <div className="grid lg:grid-cols-3 gap-12 border-t border-border/5 pt-20">
+              <div className="lg:col-span-1">
+                <h3 className="text-xl font-bold text-destructive mb-2 tracking-tight uppercase tracking-widest">Danger Zone</h3>
                 <p className="text-sm text-muted-foreground leading-relaxed">Wipe all your data from Vibe permanently.</p>
               </div>
-              <div className="md:col-span-2 space-y-6 max-w-xl">
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Once you delete your account, there is no going back. All projects, credits, and history will be wiped.
-                </p>
+              <div className="lg:col-span-2 space-y-6">
+                <div className="p-4 bg-destructive/5 border border-destructive/10 rounded-2xl">
+                  <p className="text-sm text-destructive font-medium leading-relaxed">
+                    Once you delete your account, there is no going back. All projects, credits, and history will be permanently wiped from our servers.
+                  </p>
+                </div>
                 <Button 
                   variant="ghost" 
                   onClick={handleDeleteAccount}
@@ -349,32 +351,34 @@ export default function AccountPage() {
           </section>
 
           {/* Sessions Section */}
-          <section id="sessions" className="animate-in fade-in slide-in-from-bottom-2 duration-300 border-t border-border/10 pt-16">
-            <div className="grid md:grid-cols-3 gap-8">
-              <div className="md:col-span-1">
-                <h3 className="text-lg font-bold mb-1">Active Devices</h3>
+          <section id="sessions" className="animate-in fade-in slide-in-from-bottom-4 duration-500 border-t border-border/5 pt-20">
+            <div className="grid lg:grid-cols-3 gap-12">
+              <div className="lg:col-span-1">
+                <h3 className="text-xl font-bold mb-2 tracking-tight">Active Devices</h3>
                 <p className="text-sm text-muted-foreground leading-relaxed">Currently active logins for your account.</p>
               </div>
               
-              <div className="md:col-span-2 space-y-1 max-w-xl">
+              <div className="lg:col-span-2 space-y-1">
                 {isSessionsLoading ? (
                   <div className="py-10"><Loader2 className="w-6 h-6 animate-spin text-primary/40" /></div>
                 ) : (
                   <div className="divide-y divide-border/10">
                     {sessions?.map((s) => (
                       <div key={s.token} className="flex items-center justify-between py-5 group">
-                        <div className="flex items-center gap-5">
-                          <div className="flex size-10 items-center justify-center rounded-xl bg-muted/30 text-muted-foreground group-hover:text-primary transition-colors">
-                            {s.userAgent?.toLowerCase().includes("mobile") ? <Smartphone className="w-5 h-5" /> : <Monitor className="w-5 h-5" />}
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                          <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-muted/30 text-muted-foreground group-hover:text-primary transition-colors">
+                            {s.userAgent?.toLowerCase().includes("mobile") ? <Smartphone className="w-6 h-6" /> : <Monitor className="w-6 h-6" />}
                           </div>
-                          <div>
-                            <div className="flex items-center gap-3">
-                              <span className="text-sm font-bold">{s.userAgent || "Unknown Device"}</span>
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-sm font-bold truncate max-w-[200px]">{s.userAgent || "Unknown Device"}</span>
                               {s.token === session.session.token && (
-                                <span className="text-[9px] font-bold uppercase tracking-widest text-primary bg-primary/5 px-2 py-0.5 rounded-full border border-primary/10">Active Now</span>
+                                <Badge variant="secondary" className="text-[10px] font-bold uppercase tracking-widest bg-primary/10 text-primary border-none">Active Now</Badge>
                               )}
                             </div>
-                            <p className="text-[11px] text-muted-foreground font-medium mt-1 uppercase tracking-tight">{s.ipAddress || "Unknown IP"} • {new Date(s.createdAt).toLocaleDateString()}</p>
+                            <p className="text-[11px] text-muted-foreground font-medium mt-1 uppercase tracking-tight truncate">
+                              {s.ipAddress || "Unknown IP"} • {new Date(s.createdAt).toLocaleDateString()}
+                            </p>
                           </div>
                         </div>
                         {s.token !== session.session.token && (
