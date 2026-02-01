@@ -23,6 +23,7 @@ import { useWorkspaceStore } from "@/context";
 import { Download, ExternalLink, Github, Lock, Plus, RefreshCw, Sparkles } from "lucide-react";
 import { Monitor, Smartphone, Tablet } from "lucide-react";
 import { uniqueNamesGenerator, adjectives, animals } from "unique-names-generator";
+import { toast } from "sonner";
 import { AnimatePresence, motion } from "motion/react";
 import React, { useState } from "react";
 import CodeEditor from "../editor/CodeEditor";
@@ -155,13 +156,18 @@ const RightSideView: React.FC = () => {
         useWorkspaceStore.getState().setCurrentWorkspace(data.workspace);
         if (full_name === "") {
             setIsGithubPopoverOpen(false);
+            toast.success("GitHub repository unlinked");
         } else {
             // New connection, trigger initial sync
             syncWithGithub();
+            toast.success("GitHub repository linked successfully");
         }
+      } else if (data.error) {
+          toast.error(data.error);
       }
     } catch (err) {
       console.error(err);
+      toast.error("Failed to link repository");
     }
   };
 
@@ -174,12 +180,23 @@ const RightSideView: React.FC = () => {
         body: JSON.stringify({ workspaceId: currentWorkspace.id }),
       });
       const data = await res.json();
+      if (res.status === 403) {
+          toast.error("Permission denied", {
+              description: "Please sign out and sign back in to grant 'delete_repo' permission."
+          });
+          return;
+      }
+
       if (data.workspace) {
         useWorkspaceStore.getState().setCurrentWorkspace(data.workspace);
         setIsGithubPopoverOpen(false);
+        toast.success("Repository deleted and unlinked successfully");
+      } else if (data.error) {
+          toast.error(data.error);
       }
     } catch (err) {
       console.error(err);
+      toast.error("Failed to delete repository");
     }
   };
 
