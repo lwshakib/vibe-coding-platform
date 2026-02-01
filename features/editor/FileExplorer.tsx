@@ -348,6 +348,7 @@ export default function FileExplorer() {
     addOpenFile,
     openFiles,
     setOpenFiles,
+    syncWithGithub,
   } = useWorkspaceStore();
   const { instance } = useWebContainerContext();
   const [activeTab, setActiveTab] = useState<"files" | "search">("files");
@@ -410,7 +411,21 @@ export default function FileExplorer() {
       newFiles[`${fullPath}/.keep`] = { content: "" };
     }
 
-    await updateFiles(newFiles, true);
+    await updateFiles(newFiles);
+    
+    // Sync to GitHub
+    if (currentWorkspace.githubRepo) {
+        if (isCreating === "file") {
+            syncWithGithub({
+                path: fullPath,
+                oldContent: "",
+                newContent: ""
+            });
+        } else {
+            syncWithGithub(undefined, `feat: create directory ${fullPath}`);
+        }
+    }
+    
     if (isCreating === "file") {
       addOpenFile(fullPath);
     }
@@ -473,7 +488,13 @@ export default function FileExplorer() {
     });
     setOpenFiles(updatedOpenFiles);
 
-    await updateFiles(newFiles, true);
+    await updateFiles(newFiles);
+
+    // Sync to GitHub
+    if (currentWorkspace.githubRepo) {
+        syncWithGithub(undefined, `refactor: rename ${renamingPath} to ${newPath}`);
+    }
+    
     setRenamingPath(null);
     setNewItemName("");
   };
@@ -509,7 +530,12 @@ export default function FileExplorer() {
       setClipboard(null);
     }
 
-    await updateFiles(newFiles, true);
+    await updateFiles(newFiles);
+
+    // Sync to GitHub
+    if (currentWorkspace.githubRepo) {
+        syncWithGithub(undefined, `feat: paste files to ${targetPath}`);
+    }
   };
 
   const handleDelete = async (path: string) => {
@@ -532,7 +558,16 @@ export default function FileExplorer() {
     );
     setOpenFiles(updatedOpenFiles);
 
-    await updateFiles(newFiles, true);
+    await updateFiles(newFiles);
+    
+    // Sync to GitHub
+    if (currentWorkspace.githubRepo) {
+        syncWithGithub({
+            path,
+            oldContent: currentWorkspace.files[path]?.content || "directory/batch delete",
+            newContent: null
+        });
+    }
 
     // Sync deletion to WebContainer
     if (instance) {

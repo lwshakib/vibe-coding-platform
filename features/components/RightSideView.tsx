@@ -132,11 +132,16 @@ const RightSideView: React.FC = () => {
           ...currentWorkspace,
           githubRepo: data.repo.full_name,
         });
+        
+        // Trigger initial sync for the newly created repo
+        syncWithGithub(undefined, "Initial commit: project setup");
+        
         setIsGithubPopoverOpen(false);
         setRepoName("");
         setRepoDescription("");
+        toast.success("Repository created and sync initiated!");
       } else {
-        alert(data.error || "Failed to create repository");
+        toast.error(data.error || "Failed to create repository");
       }
     } catch (err) {
       console.error(err);
@@ -161,8 +166,8 @@ const RightSideView: React.FC = () => {
             setIsGithubPopoverOpen(false);
             toast.success("GitHub repository unlinked");
         } else {
-            // New connection, trigger initial sync
-            syncWithGithub();
+            // New connection, trigger initial sync with a descriptive message
+            syncWithGithub(undefined, "Initial commit: project setup");
             toast.success("GitHub repository linked successfully");
         }
       } else if (data.error) {

@@ -83,7 +83,7 @@ interface WorkspaceStore {
   setShowExpoQR: (show: boolean) => void;
   expoQRData: string | null;
   setExpoQRData: (data: string | null) => void;
-  syncWithGithub: (changedFile?: any) => Promise<void>;
+  syncWithGithub: (changedFile?: any, customMessage?: string) => Promise<void>;
   isSyncing: boolean;
   setIsSyncing: (status: boolean) => void;
   credits: number | null;
@@ -102,7 +102,7 @@ export const useWorkspaceStore = create<WorkspaceStore>((set) => ({
 
   isSyncing: false,
   setIsSyncing: (status) => set({ isSyncing: status }),
-  syncWithGithub: async (changedFile) => {
+  syncWithGithub: async (changedFile?: any, customMessage?: string) => {
     const { currentWorkspace, isSyncing, setIsSyncing } = useWorkspaceStore.getState();
     if (!currentWorkspace?.githubRepo || isSyncing) return;
 
@@ -112,7 +112,7 @@ export const useWorkspaceStore = create<WorkspaceStore>((set) => ({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
-            commitMessage: "",
+            commitMessage: customMessage || "",
             changedFile 
         }), 
       });
