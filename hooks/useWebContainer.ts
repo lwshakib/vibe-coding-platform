@@ -360,7 +360,9 @@ export function useWebContainer(
     if (!files || Object.keys(files).length === 0 || !instance) return;
     const hasChanges = Object.entries(files).some(([path, { content }]) => mountedFilesRef.current[path] !== content) ||
                        Object.keys(mountedFilesRef.current).some(path => !files[path]);
-    if (isStreaming && isStartedRef.current) return;
+    
+    // We allow updates even during streaming to ensure new files/routes are created immediately.
+    // mountAndRun handles incremental updates efficiently to avoid unnecessary full reloads.
     if (hasChanges || !isStartedRef.current) {
       if (isBootingRef.current || isMountingRef.current || isInstallingRef.current) return;
       mountAndRun(instance, files);

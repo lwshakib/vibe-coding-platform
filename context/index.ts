@@ -191,22 +191,25 @@ export const useWorkspaceStore = create<WorkspaceStore>((set) => ({
         activeFile: newActiveFile,
       };
     }),
-  updateFiles: async (files) => {
-    const currentWorkspace = useWorkspaceStore.getState().currentWorkspace;
-    const activeFile = useWorkspaceStore.getState().activeFile;
-    if (!currentWorkspace || !activeFile) return;
+  updateFiles: async (files: any) => {
+    const { currentWorkspace, activeFile, modifiedFiles } = useWorkspaceStore.getState();
+    if (!currentWorkspace) return;
 
-    // Store original content if not already dirty
-    const modifiedFiles = useWorkspaceStore.getState().modifiedFiles;
-    if (!modifiedFiles[activeFile]) {
-      const originalContent = currentWorkspace.files[activeFile]?.content || "";
-      set((state) => ({
-        modifiedFiles: {
-          ...state.modifiedFiles,
-          [activeFile]: originalContent,
-        },
-      }));
+    // Store original content if not already dirty and active file exists in the update
+    if (activeFile && files[activeFile]) {
+      if (!modifiedFiles[activeFile]) {
+        const originalContent = currentWorkspace.files[activeFile]?.content || "";
+        set((state) => ({
+          modifiedFiles: {
+            ...state.modifiedFiles,
+            [activeFile]: originalContent,
+          },
+        }));
+      }
     }
+
+    // Persist to DB using debounced save for better performance
+    debouncedSave(currentWorkspace.id, files);
 
     // Update local state
     set((state) => ({

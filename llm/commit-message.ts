@@ -20,15 +20,16 @@ export async function generateCommitMessage(files: any, changedFile?: any) {
     FILE: "${c.path}"
     PREVIOUS CONTENT:
     ---
-    ${(c.oldContent || "").substring(0, 500)}
+    ${(c.oldContent || "").substring(0, 2000)}
     ---
     NEW CONTENT:
     ---
-    ${(c.newContent || "").substring(0, 500)}
+    ${(c.newContent || "").substring(0, 2000)}
     ---
     `).join('\n')}
     
-    Please generate a concise, professional commit message based on these specific changes.
+    Please generate a concise, professional, and HIGHLY SPECIFIC commit message based on these specific code changes.
+    Explain WHAT was changed and WHY if possible from the code.
     Example format: "feat: add user authentication" or "fix: resolve layout issue in header".
     `;
   } else {
