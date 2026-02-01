@@ -57,6 +57,8 @@ const RightSideView: React.FC = () => {
   const [isGithubPopoverOpen, setIsGithubPopoverOpen] = useState(false);
   const [isCreatingRepo, setIsCreatingRepo] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeletingRepo, setIsDeletingRepo] = useState(false);
+  const [isUnlinking, setIsUnlinking] = useState(false);
   const [repoName, setRepoName] = useState("");
   const [repoDescription, setRepoDescription] = useState("");
   const [repoPrivate, setRepoPrivate] = useState(true);
@@ -146,6 +148,7 @@ const RightSideView: React.FC = () => {
   const handleLinkRepo = async (full_name: string) => {
     if (!currentWorkspace) return;
     try {
+      if (full_name === "") setIsUnlinking(true);
       const res = await fetch("/api/github/link", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -168,12 +171,15 @@ const RightSideView: React.FC = () => {
     } catch (err) {
       console.error(err);
       toast.error("Failed to link repository");
+    } finally {
+        setIsUnlinking(false);
     }
   };
 
   const handleDeleteRepo = async () => {
     if (!currentWorkspace) return;
     try {
+      setIsDeletingRepo(true);
       const res = await fetch("/api/github/delete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -197,6 +203,8 @@ const RightSideView: React.FC = () => {
     } catch (err) {
       console.error(err);
       toast.error("Failed to delete repository");
+    } finally {
+        setIsDeletingRepo(false);
     }
   };
 
@@ -417,19 +425,29 @@ const RightSideView: React.FC = () => {
                                     </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-                                    <AlertDialogCancel className="bg-muted border-border text-foreground hover:bg-muted/80 mt-0">Cancel</AlertDialogCancel>
+                                    <AlertDialogCancel disabled={isUnlinking || isDeletingRepo} className="bg-muted border-border text-foreground hover:bg-muted/80 mt-0">Cancel</AlertDialogCancel>
                                     <div className="flex flex-col sm:flex-row gap-2 flex-1">
                                         <AlertDialogAction 
-                                            onClick={() => handleLinkRepo("")}
-                                            className="bg-secondary text-secondary-foreground hover:bg-secondary/80 flex-1"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                handleLinkRepo("");
+                                            }}
+                                            disabled={isUnlinking || isDeletingRepo}
+                                            className="bg-secondary text-secondary-foreground hover:bg-secondary/80 flex-1 h-9 rounded-xl"
                                         >
-                                            Disconnect Only
+                                            {isUnlinking ? <RefreshCw className="size-3.5 animate-spin mr-2" /> : null}
+                                            {isUnlinking ? "Unlinking..." : "Disconnect Only"}
                                         </AlertDialogAction>
                                         <AlertDialogAction 
-                                            onClick={handleDeleteRepo}
-                                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90 flex-1"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                handleDeleteRepo();
+                                            }}
+                                            disabled={isUnlinking || isDeletingRepo}
+                                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90 flex-1 h-9 rounded-xl"
                                         >
-                                            Disconnect & Delete Repo
+                                            {isDeletingRepo ? <RefreshCw className="size-3.5 animate-spin mr-2" /> : null}
+                                            {isDeletingRepo ? "Deleting..." : "Disconnect & Delete Repo"}
                                         </AlertDialogAction>
                                     </div>
                                 </AlertDialogFooter>
