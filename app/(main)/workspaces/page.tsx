@@ -12,6 +12,7 @@ import { Logo, LogoIcon } from "@/components/logo";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 import { useWorkspaceStore, Workspace } from "@/context";
 import {
   Dialog,
@@ -57,6 +58,7 @@ import {
   RefreshCw,
   Sparkles,
   Trash2,
+  AlertTriangle,
 } from "lucide-react";
 import { uniqueNamesGenerator, adjectives, animals } from "unique-names-generator";
 import { cn } from "@/lib/utils";
@@ -202,6 +204,56 @@ export default function WorkspacesPage() {
       setDeletingWorkspace(null);
     } catch (err) {
       console.error(err);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleDisconnectRepo = async () => {
+    if (!deletingWorkspace) return;
+    try {
+      setIsDeleting(true);
+      const res = await fetch("/api/github/link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ full_name: "", workspaceId: deletingWorkspace.id }),
+      });
+      if (!res.ok) throw new Error("Failed to disconnect repository");
+      
+      const data = await res.json();
+      setWorkspaces((prev) =>
+        prev.map((w) => (w.id === data.workspace.id ? data.workspace : w))
+      );
+      setDeletingWorkspace(data.workspace);
+      toast.success("Repository disconnected successfully");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to disconnect repository");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleDisconnectAndDeleteRepo = async () => {
+    if (!deletingWorkspace) return;
+    try {
+      setIsDeleting(true);
+      const res = await fetch("/api/github/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ workspaceId: deletingWorkspace.id }),
+      });
+      if (!res.ok) throw new Error("Failed to delete repository from GitHub");
+
+      const data = await res.json();
+      setWorkspaces((prev) =>
+        prev.map((w) => (w.id === data.workspace.id ? data.workspace : w))
+      );
+      setDeletingWorkspace(data.workspace);
+      toast.success("Repository deleted from GitHub and unlinked");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to delete repository from GitHub");
     } finally {
       setIsDeleting(false);
     }
@@ -1119,24 +1171,64 @@ export default function WorkspacesPage() {
           <AlertDialogHeader>
             <AlertDialogTitle className="text-foreground">Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription className="text-muted-foreground">
-              This will permanently delete the workspace{" "}
-              <span className="font-bold text-foreground">
-                "{deletingWorkspace?.name}"
-              </span>{" "}
-              and all of its associated data including files and messages. This action cannot be undone.
+              {deletingWorkspace?.githubRepo ? (
+                <div className="space-y-4">
+                  <p>
+                    The workspace <span className="font-bold text-foreground">"{deletingWorkspace?.name}"</span> is currently connected to a GitHub repository: <span className="font-mono text-primary">{deletingWorkspace?.githubRepo}</span>.
+                  </p>
+                  <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl flex gap-3 items-start">
+                    <AlertTriangle className="size-4 text-amber-500 shrink-0 mt-0.5" />
+                    <p className="text-[11px] leading-relaxed text-amber-200/80">
+                      You must disconnect or delete the GitHub repository association before you can permanently delete this workspace from Vibe.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  This will permanently delete the workspace{" "}
+                  <span className="font-bold text-foreground">
+                    "{deletingWorkspace?.name}"
+                  </span>{" "}
+                  and all of its associated data including files and messages. This action cannot be undone.
+                </>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
+          <AlertDialogFooter className={cn(deletingWorkspace?.githubRepo && "flex-col sm:flex-row gap-2")}>
             <AlertDialogCancel className="rounded-xl font-bold text-xs uppercase tracking-wider border-border/50">
               Cancel
             </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              disabled={isDeleting}
-              className="rounded-xl font-bold text-xs uppercase tracking-wider bg-destructive text-destructive-foreground hover:bg-destructive/90 shadow-lg shadow-destructive/20"
-            >
-              {isDeleting ? "Deleting..." : "Delete Permanently"}
-            </AlertDialogAction>
+            
+            {deletingWorkspace?.githubRepo ? (
+              <>
+                <Button
+                  onClick={handleDisconnectRepo}
+                  disabled={isDeleting}
+                  variant="outline"
+                  className="rounded-xl font-bold text-xs uppercase tracking-wider border-border/60 hover:bg-muted/50"
+                >
+                  {isDeleting ? <RefreshCw className="size-3 mr-2 animate-spin" /> : null}
+                  Disconnect Repo
+                </Button>
+                <Button
+                  onClick={handleDisconnectAndDeleteRepo}
+                  disabled={isDeleting}
+                  variant="destructive"
+                  className="rounded-xl font-bold text-xs uppercase tracking-wider shadow-lg shadow-destructive/20"
+                >
+                  {isDeleting ? <RefreshCw className="size-3 mr-2 animate-spin" /> : null}
+                  Disconnect & Delete Repo
+                </Button>
+              </>
+            ) : (
+              <AlertDialogAction
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className="rounded-xl font-bold text-xs uppercase tracking-wider bg-destructive text-destructive-foreground hover:bg-destructive/90 shadow-lg shadow-destructive/20"
+              >
+                {isDeleting ? "Deleting..." : "Delete Permanently"}
+              </AlertDialogAction>
+            )}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
