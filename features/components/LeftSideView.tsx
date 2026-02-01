@@ -48,8 +48,9 @@ const LeftSideView: React.FC = () => {
   // Parse artifacts from streaming messages and update workspace files
   useEffect(() => {
     const lastMessage = messages[messages.length - 1];
-    if (lastMessage && lastMessage.role === "assistant") {
+    if (lastMessage && lastMessage.role === "assistant" && currentWorkspace?.id) {
       const content = getMessageText(lastMessage);
+      
       if (content.includes("<vibeArtifact")) {
         const parsed = parseVibeArtifact(content);
         const artifactFiles = parsed.files.flatFiles;
@@ -59,49 +60,50 @@ const LeftSideView: React.FC = () => {
         }
 
         if (artifactFiles && Object.keys(artifactFiles).length > 0) {
-          const currentFiles = currentWorkspace?.files || {};
-          const mergedFiles = { ...currentFiles };
-
-          let hasChanges = false;
+          const workspaceFiles = currentWorkspace.files || {};
+          const mergedFiles = { ...workspaceFiles };
+          let hasGlobalChanges = false;
 
           Object.entries(artifactFiles).forEach(([path, fileData]: [string, any]) => {
-            const originalContent = currentFiles[path]?.content || "";
+            const existingFile = workspaceFiles[path];
+            const originalContent = existingFile?.content || "";
             let newContent = originalContent;
 
             if (fileData.startLine && fileData.endLine) {
-              // Apply patch
+              // Apply line-based patch
               const lines = originalContent.split("\n");
-              // Parse as integers to ensure valid numbers
               const startVal = parseInt(String(fileData.startLine), 10);
               const endVal = parseInt(String(fileData.endLine), 10);
               
-              const start = startVal - 1;
+              const startIdx = startVal - 1;
               const deleteCount = endVal - startVal + 1;
               
-              if (!isNaN(start) && !isNaN(deleteCount) && start >= 0) {
-                 const newLines = fileData.content.split("\n");
-                 lines.splice(start, deleteCount, ...newLines);
-                 newContent = lines.join("\n");
+              if (!isNaN(startIdx) && !isNaN(deleteCount) && startIdx >= 0) {
+                  const newLines = fileData.content.split("\n");
+                  lines.splice(startIdx, deleteCount, ...newLines);
+                  newContent = lines.join("\n");
               }
             } else {
-              // Full replace/Create
+              // Full file replacement or creation
               newContent = fileData.content;
             }
 
-            // Only update if content actually changed
+            // Only update if content actually changed to prevent unnecessary store updates
             if (newContent !== originalContent) {
               mergedFiles[path] = { content: newContent };
-              hasChanges = true;
+              hasGlobalChanges = true;
             }
           });
 
-          if (hasChanges) {
+          if (hasGlobalChanges) {
+             // Use immediate: false by default for streaming to allow debounced DB saves,
+             // but store update is immediate for the UI and WebContainer
              updateFiles(mergedFiles);
           }
         }
       }
     }
-  }, [messages, updateFiles, setPendingPreviewRoute]);
+  }, [messages, updateFiles, setPendingPreviewRoute, currentWorkspace?.id]);
 
   const currentName = currentWorkspace?.name || nameInput || "My Project";
 

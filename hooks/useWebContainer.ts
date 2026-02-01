@@ -221,10 +221,15 @@ export function useWebContainer(
       try {
         let finalFiles = { ...projectFiles };
         let dependenciesChanged = false;
+        
+        // Detect if any crucial configuration files changed
         if (finalFiles["package.json"]) {
           try {
-            const pkg = JSON.parse(finalFiles["package.json"].content);
+            const pkgContent = finalFiles["package.json"].content;
+            const pkg = JSON.parse(pkgContent);
             let modified = false;
+            
+            // Remove incompatible --turbo flag that often breaks WebContainer dev servers
             if (pkg.scripts) {
               Object.keys(pkg.scripts).forEach((key) => {
                 if (pkg.scripts[key] && pkg.scripts[key].includes("--turbo")) {
@@ -233,24 +238,39 @@ export function useWebContainer(
                 }
               });
             }
+            
             if (modified) {
               finalFiles["package.json"] = { content: JSON.stringify(pkg, null, 2) };
-              writeToTerminal("\x1b[33mRemoved incompatible --turbo flag from package.json scripts\x1b[0m\r\n");
+              writeToTerminal("\x1b[33m[Vibe] Optimized package.json for WebContainer environment.\x1b[0m\r\n");
             }
-            if (mountedFilesRef.current["package.json"]) {
-              const oldPkg = JSON.parse(mountedFilesRef.current["package.json"]);
-              if (JSON.stringify(oldPkg.dependencies) !== JSON.stringify(pkg.dependencies) ||
-                  JSON.stringify(oldPkg.devDependencies) !== JSON.stringify(pkg.devDependencies)) {
+
+            // Check for dependency changes against currently mounted files
+            const oldPkgStr = mountedFilesRef.current["package.json"];
+            if (oldPkgStr) {
+              const oldPkg = JSON.parse(oldPkgStr);
+              const depsChanged = JSON.stringify(oldPkg.dependencies) !== JSON.stringify(pkg.dependencies);
+              const devDepsChanged = JSON.stringify(oldPkg.devDependencies) !== JSON.stringify(pkg.devDependencies);
+              
+              if (depsChanged || devDepsChanged) {
                 dependenciesChanged = true;
+                writeToTerminal("\r\n\x1b[35m[Vibe] Dependencies changed, scheduled installation...\x1b[0m\r\n");
               }
+            } else if (pkg.dependencies || pkg.devDependencies) {
+              // Newly added package.json with dependencies
+              dependenciesChanged = true;
+              writeToTerminal("\r\n\x1b[35m[Vibe] New package.json detected, scheduled installation...\x1b[0m\r\n");
             }
-          } catch (e) {}
+          } catch (e) {
+            console.error("Failed to parse package.json for dependency check", e);
+          }
         }
 
+        // Full mount or incremental update based on state
         if (Object.keys(mountedFilesRef.current).length === 0) {
           if (isMountingRef.current) return;
           isMountingRef.current = true;
           setState("mounting");
+          
           try {
             const ls = await wc.fs.readdir("/").catch(() => []);
             for (const item of ls) {
@@ -260,11 +280,15 @@ export function useWebContainer(
 
           const tree = transformToWebContainerTree(finalFiles);
           await wc.mount(tree);
+          
           Object.entries(finalFiles).forEach(([path, { content }]) => {
             mountedFilesRef.current[path] = content;
           });
           isMountingRef.current = false;
+          writeToTerminal("\x1b[32m[Vibe] Files mounted successfully.\x1b[0m\r\n");
         } else {
+          // Incremental updates for efficiency
+          let updatedCount = 0;
           for (const [path, { content }] of Object.entries(finalFiles)) {
             if (mountedFilesRef.current[path] !== content) {
               const fullPath = `/${path}`;
@@ -274,23 +298,35 @@ export function useWebContainer(
               }
               await wc.fs.writeFile(fullPath, content);
               mountedFilesRef.current[path] = content;
-              writeToTerminal(`\x1b[90mUpdated: ${path}\x1b[0m\r\n`);
+              updatedCount++;
             }
           }
+
+          // Handle deletions
           const currentMountedPaths = Object.keys(mountedFilesRef.current);
           for (const path of currentMountedPaths) {
             if (!finalFiles[path]) {
               try {
                 await wc.fs.rm(`/${path}`, { recursive: true }).catch(() => {});
                 delete mountedFilesRef.current[path];
-                writeToTerminal(`\x1b[90mDeleted: ${path}\x1b[0m\r\n`);
+                writeToTerminal(`\x1b[90m[Vibe] Removed: ${path}\x1b[0m\r\n`);
               } catch (e) {}
             }
           }
+          
+          if (updatedCount > 0) {
+            writeToTerminal(`\x1b[90m[Vibe] Synced ${updatedCount} files.\x1b[0m\r\n`);
+          }
         }
 
-        if (dependenciesChanged || (!isStartedRef.current && finalFiles["package.json"])) {
+        // Run install if needed or if starting for the first time
+        const shouldInstall = dependenciesChanged || (!isStartedRef.current && finalFiles["package.json"]);
+        
+        if (shouldInstall) {
           await runInstall(wc);
+          await startDevServer(wc);
+        } else if (!isStartedRef.current) {
+          // If no package.json but we need to start (might be just static files or custom server)
           await startDevServer(wc);
         }
       } catch (err: any) {
@@ -298,7 +334,7 @@ export function useWebContainer(
         isMountingRef.current = false;
         setState("error");
         setError(err.message);
-        writeToTerminal(`\x1b[31mError: ${err.message}\x1b[0m\r\n`);
+        writeToTerminal(`\x1b[31m[Vibe] WebContainer Error: ${err.message}\x1b[0m\r\n`);
       }
     },
     [startDevServer, runInstall, writeToTerminal]
