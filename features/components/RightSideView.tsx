@@ -44,6 +44,7 @@ const RightSideView: React.FC = () => {
     pendingPreviewRoute,
     setPendingPreviewRoute,
     isSyncing,
+    syncWithGithub,
   } = useWorkspaceStore();
   const { url: previewUrl, port, setPort } = useWebContainerContext();
 
@@ -54,6 +55,7 @@ const RightSideView: React.FC = () => {
   // GitHub Popover State
   const [isGithubPopoverOpen, setIsGithubPopoverOpen] = useState(false);
   const [isCreatingRepo, setIsCreatingRepo] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [repoName, setRepoName] = useState("");
   const [repoDescription, setRepoDescription] = useState("");
   const [repoPrivate, setRepoPrivate] = useState(true);
@@ -110,7 +112,7 @@ const RightSideView: React.FC = () => {
   const handleCreateRepo = async () => {
     if (!repoName.trim() || !currentWorkspace) return;
     try {
-      setIsCreatingRepo(true);
+      setIsSubmitting(true);
       const res = await fetch("/api/github/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -136,7 +138,7 @@ const RightSideView: React.FC = () => {
     } catch (err) {
       console.error(err);
     } finally {
-      setIsCreatingRepo(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -153,7 +155,28 @@ const RightSideView: React.FC = () => {
         useWorkspaceStore.getState().setCurrentWorkspace(data.workspace);
         if (full_name === "") {
             setIsGithubPopoverOpen(false);
+        } else {
+            // New connection, trigger initial sync
+            syncWithGithub();
         }
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDeleteRepo = async () => {
+    if (!currentWorkspace) return;
+    try {
+      const res = await fetch("/api/github/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ workspaceId: currentWorkspace.id }),
+      });
+      const data = await res.json();
+      if (data.workspace) {
+        useWorkspaceStore.getState().setCurrentWorkspace(data.workspace);
+        setIsGithubPopoverOpen(false);
       }
     } catch (err) {
       console.error(err);
@@ -376,14 +399,22 @@ const RightSideView: React.FC = () => {
                                         This will unlink the GitHub repository from your workspace.
                                     </AlertDialogDescription>
                                 </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                    <AlertDialogCancel className="bg-muted border-border text-foreground hover:bg-muted/80">Cancel</AlertDialogCancel>
-                                    <AlertDialogAction 
-                                        onClick={() => handleLinkRepo("")}
-                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                    >
-                                        Disconnect
-                                    </AlertDialogAction>
+                                <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+                                    <AlertDialogCancel className="bg-muted border-border text-foreground hover:bg-muted/80 mt-0">Cancel</AlertDialogCancel>
+                                    <div className="flex flex-col sm:flex-row gap-2 flex-1">
+                                        <AlertDialogAction 
+                                            onClick={() => handleLinkRepo("")}
+                                            className="bg-secondary text-secondary-foreground hover:bg-secondary/80 flex-1"
+                                        >
+                                            Disconnect Only
+                                        </AlertDialogAction>
+                                        <AlertDialogAction 
+                                            onClick={handleDeleteRepo}
+                                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90 flex-1"
+                                        >
+                                            Disconnect & Delete Repo
+                                        </AlertDialogAction>
+                                    </div>
                                 </AlertDialogFooter>
                             </AlertDialogContent>
                         </AlertDialog>
@@ -458,9 +489,9 @@ const RightSideView: React.FC = () => {
                                  <Button 
                                     className="w-full h-10 bg-primary text-primary-foreground font-bold rounded-xl shadow-lg shadow-primary/20 uppercase text-[11px]"
                                     onClick={handleCreateRepo}
-                                    disabled={!repoName.trim() || isCreatingRepo}
+                                    disabled={!repoName.trim() || isSubmitting}
                                 >
-                                    {isCreatingRepo ? <RefreshCw className="size-3.5 animate-spin" /> : "Create Repo"}
+                                    {isSubmitting ? <RefreshCw className="size-3.5 animate-spin" /> : "Create Repo"}
                                 </Button>
                              </div>
                         </div>
