@@ -190,6 +190,23 @@ export default function Home() {
               </Button>
             </div>
 
+            {/* App Preview Image */}
+            <motion.div
+              initial={{ opacity: 0, y: 40 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4, duration: 0.8 }}
+              className="mt-20 relative max-w-5xl mx-auto"
+            >
+              <div className="absolute inset-0 bg-primary/20 blur-[100px] -z-10 opacity-30" />
+              <div className="rounded-3xl overflow-hidden border border-border/50 shadow-2xl shadow-primary/10 bg-muted/20 backdrop-blur-sm p-2">
+                <img
+                  src="/vibe-editor-screenshot.png"
+                  alt="Vibe Editor Preview"
+                  className="w-full h-auto rounded-2xl"
+                />
+              </div>
+            </motion.div>
+
             {/* Stats */}
             <motion.div
               variants={containerVariants}
