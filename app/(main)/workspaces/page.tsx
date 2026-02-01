@@ -142,6 +142,11 @@ export default function WorkspacesPage() {
   const [step, setStep] = useState(0);
   const [createError, setCreateError] = useState<string | null>(null);
   const [suggestedNames, setSuggestedNames] = useState<string[]>([]);
+  
+  // Pagination state
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
 
   // Workspace management state
   const [renamingWorkspace, setRenamingWorkspace] = useState<Workspace | null>(
@@ -222,21 +227,39 @@ export default function WorkspacesPage() {
     return thumbnails;
   }, [workspaces]);
 
-  const loadWorkspaces = async () => {
+  const loadWorkspaces = async (cursor?: string | null) => {
     try {
-      setLoading(true);
+      if (!cursor) {
+        setLoading(true);
+      } else {
+        setIsFetchingMore(true);
+      }
+      
       setError(null);
-      const res = await fetch("/api/workspaces");
+      const url = new URL("/api/workspaces", window.location.origin);
+      url.searchParams.set("limit", "12");
+      if (cursor) url.searchParams.set("cursor", cursor);
+      
+      const res = await fetch(url.toString());
       if (!res.ok) {
         throw new Error("Failed to load workspaces");
       }
       const data = await res.json();
-      setWorkspaces(data.workspaces ?? []);
+      
+      if (cursor) {
+        setWorkspaces((prev) => [...prev, ...(data.workspaces ?? [])]);
+      } else {
+        setWorkspaces(data.workspaces ?? []);
+      }
+      
+      setNextCursor(data.nextCursor);
+      setHasMore(!!data.nextCursor);
     } catch (err) {
       console.error(err);
       setError("Unable to load workspaces right now.");
     } finally {
       setLoading(false);
+      setIsFetchingMore(false);
     }
   };
 
@@ -444,6 +467,24 @@ export default function WorkspacesPage() {
     generateNames();
     fetchCredits();
   }, [fetchCredits]);
+
+  useEffect(() => {
+    if (!hasMore || loading || isFetchingMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore) {
+          loadWorkspaces(nextCursor);
+        }
+      },
+      { threshold: 0.1, rootMargin: '200px' }
+    );
+
+    const target = document.getElementById("infinite-scroll-trigger");
+    if (target) observer.observe(target);
+
+    return () => observer.disconnect();
+  }, [hasMore, loading, isFetchingMore, nextCursor]);
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground w-full">
@@ -908,107 +949,118 @@ export default function WorkspacesPage() {
                   </p>
                 </div>
               ) : (
-                <Table className="border-collapse">
-                  <TableHeader>
-                    <TableRow className="hover:bg-transparent border-t border-b border-border/10">
-                      <TableHead className="w-[45%] pl-4 text-[11px] uppercase tracking-wider font-bold text-muted-foreground/60">Project</TableHead>
-                      <TableHead className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground/60">Stack</TableHead>
-                      <TableHead className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground/60">Last Updated</TableHead>
-                      <TableHead className="text-right pr-4"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {[...workspaces]
-                      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-                      .map((workspace: Workspace) => {
-                        const template = getTemplateByType(workspace.app_type);
-                        return (
-                          <TableRow 
-                            key={workspace.id} 
-                            className="group cursor-pointer h-16 transition-colors hover:bg-muted/30 border-b border-border/10"
-                            onClick={() => router.push(`/workspaces/${workspace.id}`)}
-                          >
-                            <TableCell className="pl-4 font-medium">
-                              <div className="flex items-center gap-3">
-                                <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 transition-transform group-hover:scale-105">
-                                  <img
-                                    src={template?.logo || "/logos/react.svg"}
-                                    alt={template?.label || "Workspace"}
-                                    className={cn("size-5", template?.logoStyling)}
-                                  />
+                <>
+                  <Table className="border-collapse">
+                    <TableHeader>
+                      <TableRow className="hover:bg-transparent border-t border-b border-border/10">
+                        <TableHead className="w-[45%] pl-4 text-[11px] uppercase tracking-wider font-bold text-muted-foreground/60">Project</TableHead>
+                        <TableHead className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground/60">Stack</TableHead>
+                        <TableHead className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground/60">Last Updated</TableHead>
+                        <TableHead className="text-right pr-4"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {[...workspaces]
+                        .map((workspace: Workspace) => {
+                          const template = getTemplateByType(workspace.app_type);
+                          return (
+                            <TableRow 
+                              key={workspace.id} 
+                              className="group cursor-pointer h-16 transition-colors hover:bg-muted/30 border-b border-border/10"
+                              onClick={() => router.push(`/workspaces/${workspace.id}`)}
+                            >
+                              <TableCell className="pl-4 font-medium">
+                                <div className="flex items-center gap-3">
+                                  <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 transition-transform group-hover:scale-105">
+                                    <img
+                                      src={template?.logo || "/logos/react.svg"}
+                                      alt={template?.label || "Workspace"}
+                                      className={cn("size-5", template?.logoStyling)}
+                                    />
+                                  </div>
+                                  <span className="truncate max-w-[200px] md:max-w-xs">{workspace.name}</span>
                                 </div>
-                                <span className="truncate max-w-[200px] md:max-w-xs">{workspace.name}</span>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="secondary" className="text-[9px] uppercase tracking-wider font-extrabold bg-primary/5 text-primary border-none px-2 pr-2.5">
-                                {template?.label || "Vite"}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                              {new Date(workspace.updatedAt).toLocaleDateString(undefined, {
-                                month: 'short',
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}
-                            </TableCell>
-                            <TableCell className="text-right pr-4">
-                              <div className="flex justify-end gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-all hover:bg-primary/10 hover:text-primary"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    router.push(`/workspaces/${workspace.id}`);
-                                  }}
-                                >
-                                  <ChevronRight className="size-4" />
-                                </Button>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="secondary" className="text-[9px] uppercase tracking-wider font-extrabold bg-primary/5 text-primary border-none px-2 pr-2.5">
+                                  {template?.label || "Vite"}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                                {new Date(workspace.updatedAt).toLocaleDateString(undefined, {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </TableCell>
+                              <TableCell className="text-right pr-4">
+                                <div className="flex justify-end gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-all hover:bg-primary/10 hover:text-primary"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      router.push(`/workspaces/${workspace.id}`);
+                                    }}
+                                  >
+                                    <ChevronRight className="size-4" />
+                                  </Button>
 
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-all hover:bg-muted"
-                                      onClick={(e) => e.stopPropagation()}
-                                    >
-                                      <MoreVertical className="size-4" />
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end" className="w-40 rounded-xl border-border/50 bg-background/95 backdrop-blur-sm">
-                                    <DropdownMenuItem
-                                      className="flex items-center gap-2 text-xs font-semibold cursor-pointer"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setRenamingWorkspace(workspace);
-                                        setRenameInput(workspace.name);
-                                      }}
-                                    >
-                                      <Edit2 className="size-3.5" />
-                                      Rename
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                      className="flex items-center gap-2 text-xs font-semibold text-destructive focus:text-destructive cursor-pointer"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setDeletingWorkspace(workspace);
-                                      }}
-                                    >
-                                      <Trash2 className="size-3.5" />
-                                      Delete
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                  </TableBody>
-                </Table>
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-all hover:bg-muted"
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        <MoreVertical className="size-4" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-40 rounded-xl border-border/50 bg-background/95 backdrop-blur-sm">
+                                      <DropdownMenuItem
+                                        className="flex items-center gap-2 text-xs font-semibold cursor-pointer"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setRenamingWorkspace(workspace);
+                                          setRenameInput(workspace.name);
+                                        }}
+                                      >
+                                        <Edit2 className="size-3.5" />
+                                        Rename
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem
+                                        className="flex items-center gap-2 text-xs font-semibold text-destructive focus:text-destructive cursor-pointer"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setDeletingWorkspace(workspace);
+                                        }}
+                                      >
+                                        <Trash2 className="size-3.5" />
+                                        Delete
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                    </TableBody>
+                  </Table>
+                  {hasMore && (
+                    <div id="infinite-scroll-trigger" className="w-full h-20 flex items-center justify-center">
+                      {isFetchingMore && (
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <RefreshCw className="size-3 animate-spin" />
+                          Loading more workspaces...
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}

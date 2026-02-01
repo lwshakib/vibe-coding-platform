@@ -18,16 +18,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "User ID not found" }, { status: 401 });
     }
 
+    const limit = parseInt(request.nextUrl.searchParams.get("limit") || "12");
+    const cursor = request.nextUrl.searchParams.get("cursor");
+
     const workspaces = await prisma.workspace.findMany({
       where: {
         userId: userId,
       },
+      take: limit,
+      ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
       orderBy: {
         updatedAt: "desc",
       },
     });
 
-    return NextResponse.json({ workspaces });
+    const nextCursor = workspaces.length === limit ? workspaces[workspaces.length - 1].id : null;
+
+    return NextResponse.json({ workspaces, nextCursor });
   } catch (error) {
     console.error("[WORKSPACES_GET]", error);
     return NextResponse.json(
