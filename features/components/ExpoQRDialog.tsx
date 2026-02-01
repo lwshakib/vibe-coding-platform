@@ -40,17 +40,17 @@ export const ExpoQRDialog: React.FC = () => {
   return (
     <Dialog open={showExpoQR} onOpenChange={setShowExpoQR}>
       <DialogContent className="sm:max-w-md bg-background border-border shadow-2xl overflow-hidden p-0 dark">
-        <div className="relative overflow-hidden pt-8 pb-6 px-6">
-          {/* Background Decoration */}
-          <div className="absolute -top-12 -right-12 w-48 h-48 bg-primary/10 rounded-full blur-3xl opacity-50" />
-          <div className="absolute -bottom-12 -left-12 w-48 h-48 bg-primary/10 rounded-full blur-3xl opacity-50" />
+        <div className="relative overflow-hidden pt-8 pb-6 px-8">
+          {/* Subtle Background Glow */}
+          <div className="absolute -top-12 -right-12 w-48 h-48 bg-primary/5 rounded-full blur-3xl opacity-50" />
+          <div className="absolute -bottom-12 -left-12 w-48 h-48 bg-primary/5 rounded-full blur-3xl opacity-50" />
 
-          <DialogHeader className="relative items-center text-center space-y-4 mb-8">
-            <div className="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center shadow-inner shadow-primary/20 animate-in zoom-in-95 duration-500">
-              <Smartphone className="h-7 w-7 text-primary" />
+          <DialogHeader className="relative items-center text-center space-y-4 mb-10">
+            <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center animate-in zoom-in-95 duration-500">
+              <Smartphone className="h-8 w-8 text-primary" />
             </div>
             <div className="space-y-1.5">
-              <DialogTitle className="text-xl font-bold tracking-tight text-foreground">
+              <DialogTitle className="text-2xl font-bold tracking-tight text-foreground">
                 {currentWorkspace?.name || "Mobile Preview"}
               </DialogTitle>
               <DialogDescription className="text-sm text-muted-foreground flex items-center justify-center gap-1.5">
@@ -60,109 +60,113 @@ export const ExpoQRDialog: React.FC = () => {
             </div>
           </DialogHeader>
 
-          <div className="flex flex-col items-center space-y-6 relative">
-            {/* QR Code Section */}
+          <div className="flex flex-col items-center space-y-10 relative">
+            {/* QR Code Section - Removed card container */}
             <div className="relative group">
-              <div className="absolute -inset-1 bg-linear-to-r from-primary/20 via-primary/40 to-primary/20 rounded-3xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
-              <div className="relative bg-white p-4 rounded-2xl border border-border shadow-2xl flex items-center justify-center min-h-[232px] min-w-[232px] group-hover:scale-[1.02] transition-transform duration-500">
+              {/* Simple background glow */}
+              <div className="absolute -inset-4 bg-primary/5 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition duration-700" />
+              
+              <div className="relative flex items-center justify-center min-h-[200px] min-w-[200px] transition-transform duration-500">
                 {isLoading && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-white rounded-2xl z-10">
+                  <div className="absolute inset-0 flex items-center justify-center z-10">
                     <Loader2 className="h-8 w-8 text-primary animate-spin" />
                   </div>
                 )}
-                <img
-                  src={qrCodeImageUrl}
-                  alt="Expo QR Code"
-                  className={`w-[200px] h-[200px] rounded-lg transition-opacity duration-300 ${isLoading ? 'opacity-0' : 'opacity-100'}`}
-                  onLoad={() => setIsLoading(false)}
-                  onError={() => {
-                    setIsLoading(false);
-                    toast.error("Failed to load QR code. Please try manual copy.");
-                  }}
-                />
+                {/* QR code itself has a small rounded background for contrast but no border/card container */}
+                <div className="bg-white p-3 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
+                  <img
+                    src={qrCodeImageUrl}
+                    alt="Expo QR Code"
+                    className={`w-[180px] h-[180px] rounded-lg transition-opacity duration-300 ${isLoading ? 'opacity-0' : 'opacity-100'}`}
+                    onLoad={() => setIsLoading(false)}
+                    onError={() => {
+                      setIsLoading(false);
+                      toast.error("Failed to load QR code. Please try manual copy.");
+                    }}
+                  />
+                </div>
                 
                 {!isLoading && (
                     <button 
                         onClick={() => setQrOrigin(prev => prev + 1)}
-                        className="absolute bottom-2 right-2 p-1.5 bg-black/5 hover:bg-black/10 rounded-full transition-colors text-black/40"
+                        className="absolute -bottom-4 -right-4 p-2 bg-muted hover:bg-muted/80 text-muted-foreground rounded-full transition-all border border-border shadow-sm active:scale-95"
                         title="Refresh QR Code"
                     >
-                        <RefreshCw className="w-3 h-3" />
+                        <RefreshCw className="w-4 h-4" />
                     </button>
                 )}
               </div>
             </div>
 
-            {/* URL & Copy Section */}
-            <div className="w-full bg-muted/40 border border-border rounded-xl p-3 space-y-2">
-                <div className="flex items-center justify-between gap-2">
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest text-primary/70">Project URL</span>
-                    <div className="flex items-center gap-1">
-                         <span className="text-[9px] text-muted-foreground bg-primary/5 px-1.5 py-0.5 rounded border border-primary/10 font-mono">
-                            {expoQRData.length > 30 ? "Long URL" : "Direct Link"}
-                         </span>
+            {/* Content-focused Sections (Removed card-like borders/backgrounds) */}
+            <div className="w-full space-y-6">
+                {/* URL Section */}
+                <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Project URL</span>
+                        <span className="text-[9px] text-primary/70 font-bold uppercase tracking-widest bg-primary/5 px-2 py-0.5 rounded-full">
+                           {expoQRData.length > 30 ? "Direct URI" : "Safe Link"}
+                        </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <div className="flex-1 bg-muted/30 border border-border/50 rounded-xl px-4 py-2.5 flex items-center gap-3 overflow-hidden transition-colors focus-within:border-primary/30">
+                            <ExternalLink className="w-4 h-4 text-muted-foreground shrink-0" />
+                            <code className="text-xs text-foreground font-mono truncate select-all">
+                                {expoQRData}
+                            </code>
+                        </div>
+                        <Button 
+                            size="icon" 
+                            variant="secondary" 
+                            className="h-11 w-11 shrink-0 rounded-xl shadow-sm hover:bg-muted transition-all"
+                            onClick={handleCopy}
+                            title="Copy to clipboard"
+                        >
+                            {copied ? (
+                                <Check className="h-5 w-5 text-emerald-500 animate-in zoom-in" />
+                            ) : (
+                                <Copy className="h-5 w-5 text-muted-foreground" />
+                            )}
+                        </Button>
                     </div>
                 </div>
-                <div className="flex items-center gap-2 group/input">
-                    <div className="flex-1 bg-background/50 border border-border rounded-lg px-2.5 py-2 flex items-center gap-2 overflow-hidden shadow-inner group-focus-within/input:border-primary/30 transition-colors">
-                        <ExternalLink className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                        <code className="text-[11px] text-foreground font-mono truncate select-all">
-                            {expoQRData}
-                        </code>
-                    </div>
-                    <Button 
-                        size="icon" 
-                        variant="secondary" 
-                        className="h-9 w-9 shrink-0 shadow-sm hover:scale-105 active:scale-95 transition-all text-foreground"
-                        onClick={handleCopy}
-                        title="Copy to clipboard"
-                    >
-                        {copied ? (
-                            <Check className="h-4 w-4 text-emerald-500 animate-in zoom-in" />
-                        ) : (
-                            <Copy className="h-4 w-4 text-muted-foreground" />
-                        )}
-                    </Button>
+
+                {/* Instruction Steps - Flat layout */}
+                <div className="grid grid-cols-2 gap-6 pt-2">
+                  <div className="space-y-2 group">
+                      <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary mb-2">
+                          <Download className="h-4 w-4" />
+                      </div>
+                      <p className="text-xs font-bold text-foreground">1. Open Expo Go</p>
+                      <p className="text-[10px] text-muted-foreground leading-snug">Available on App Store or Play Store for testing.</p>
+                  </div>
+
+                  <div className="space-y-2 group">
+                      <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary mb-2">
+                          <QrCode className="h-4 w-4" />
+                      </div>
+                      <p className="text-xs font-bold text-foreground">2. Scan QR Code</p>
+                      <p className="text-[10px] text-muted-foreground leading-snug">Use your camera or the Expo app scanner to link.</p>
+                  </div>
                 </div>
-            </div>
-
-            {/* Instruction Steps */}
-            <div className="w-full grid grid-cols-2 gap-3 pb-2">
-              <div className="bg-muted/20 border border-border/50 rounded-xl p-3 flex flex-col gap-2 hover:bg-muted/30 transition-colors group">
-                  <Download className="h-4 w-4 text-primary opacity-60 group-hover:opacity-100 transition-opacity" />
-                  <div className="space-y-0.5">
-                    <p className="text-[11px] font-bold leading-none text-foreground">1. Open Expo Go</p>
-                    <p className="text-[9px] text-muted-foreground leading-tight">Install on iOS/Android</p>
-                  </div>
-              </div>
-
-              <div className="bg-muted/20 border border-border/50 rounded-xl p-3 flex flex-col gap-2 hover:bg-muted/30 transition-colors group">
-                  <QrCode className="h-4 w-4 text-primary opacity-60 group-hover:opacity-100 transition-opacity" />
-                  <div className="space-y-0.5">
-                    <p className="text-[11px] font-bold leading-none text-foreground">2. Scan or Paste</p>
-                    <p className="text-[9px] text-muted-foreground leading-tight">Use camera or link</p>
-                  </div>
-              </div>
             </div>
 
             <Button 
               onClick={() => setShowExpoQR(false)}
-              className="w-full h-11 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-lg shadow-primary/20 transition-all hover:scale-[1.01] active:scale-[0.99]"
+              className="w-full h-12 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-lg shadow-primary/20 transition-all hover:scale-[1.01] active:scale-[0.99] mt-4"
             >
               Done
             </Button>
           </div>
         </div>
 
-        {/* Footer info */}
-        <div className="bg-muted/30 px-6 py-3 border-t border-border flex items-center justify-between">
+        {/* Flat Footer */}
+        <div className="px-8 py-4 border-t border-border/50 flex items-center justify-between text-[10px] font-bold text-muted-foreground uppercase tracking-widest opacity-60">
            <div className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-[9px] font-medium text-muted-foreground uppercase tracking-wider">Server Online</span>
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                <span>Status: Online</span>
            </div>
-          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest flex items-center gap-2">
-            Protocol: <span className="text-foreground">{expoQRData.includes("://") ? expoQRData.split("://")[0].toUpperCase() : "HTTPS"}</span>
-          </p>
+           <span>Protocol: {expoQRData.includes("://") ? expoQRData.split("://")[0] : "HTTPS"}</span>
         </div>
       </DialogContent>
     </Dialog>

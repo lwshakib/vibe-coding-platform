@@ -199,7 +199,7 @@ export const CustomSearchBar: React.FC<CustomSearchBarProps> = ({
                     <div className="absolute inset-0 w-2 h-2 rounded-full bg-emerald-400 animate-ping opacity-30" />
                   </div>
                   <span className="text-xs font-semibold tracking-wide text-muted-foreground transition-colors group-hover/port:text-foreground">
-                    :{port}
+                    {port}
                   </span>
                 </button>
               </TooltipTrigger>
@@ -208,14 +208,14 @@ export const CustomSearchBar: React.FC<CustomSearchBarProps> = ({
               </TooltipContent>
             </Tooltip>
           </PopoverTrigger>
-          <PopoverContent className="w-56 p-4" align="start" sideOffset={12}>
-            <form onSubmit={handlePortSubmit} className="space-y-3">
+          <PopoverContent className="w-64 p-4 shadow-2xl rounded-2xl border-border bg-popover/95 backdrop-blur-xl" align="start" sideOffset={12}>
+            <form onSubmit={handlePortSubmit} className="space-y-4">
               <div className="space-y-1.5">
-                <Label htmlFor="port-input" className="text-xs font-semibold">
+                <Label htmlFor="port-input" className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80">
                   Development Port
                 </Label>
-                <p className="text-[10px] text-muted-foreground">
-                  Valid range: 1-65535
+                <p className="text-[10px] text-muted-foreground leading-none">
+                  Manual entry (1-65535)
                 </p>
               </div>
               <div className="flex gap-2">
@@ -226,17 +226,42 @@ export const CustomSearchBar: React.FC<CustomSearchBarProps> = ({
                   max="65535"
                   value={localPort}
                   onChange={(e) => setLocalPort(e.target.value)}
-                  className="h-9 text-sm"
+                  className="h-9 text-sm rounded-xl border-border/60 bg-muted/20 focus:bg-background"
                   autoFocus
                   placeholder="3000"
                 />
                 <Button 
                   type="submit" 
                   size="sm" 
-                  className="h-9 px-4 text-xs font-semibold"
+                  className="h-9 px-4 text-xs font-bold rounded-xl shadow-lg"
                 >
                   Apply
                 </Button>
+              </div>
+
+              <div className="pt-2">
+                <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground/60 mb-3 ml-1">Suggested Ports</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {[3000, 8000, 4000, 8080, 5173].map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => {
+                        setLocalPort(p.toString());
+                        if (onPortChange) onPortChange(p);
+                        setIsPopoverOpen(false);
+                      }}
+                      className={cn(
+                        "flex items-center justify-center h-8 px-2 rounded-lg text-xs font-bold border transition-all",
+                        port === p 
+                          ? "bg-primary/10 border-primary text-primary shadow-sm" 
+                          : "border-border/40 hover:bg-muted/80 text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                </div>
               </div>
             </form>
           </PopoverContent>

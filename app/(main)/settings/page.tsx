@@ -49,107 +49,105 @@ export default function SettingsPage() {
 
       <main className="flex-1 w-full pb-20 font-inter">
         {/* Header */}
-        <div className="max-w-4xl mx-auto px-4 pt-10 pb-8">
+        <div className="max-w-4xl mx-auto px-4 pt-10 pb-8 border-b border-border/10">
           <div className="flex flex-col gap-1">
             <h1 className="text-3xl font-bold tracking-tight text-foreground">Settings & Credits</h1>
             <p className="text-muted-foreground">Manage your preferences and workspace resources.</p>
           </div>
         </div>
 
-        <div className="max-w-4xl mx-auto px-4 space-y-8">
+        <div className="max-w-4xl mx-auto px-4 space-y-20 mt-12">
           
           {/* Credits Section */}
-          <section className="space-y-4">
-            <h2 className="text-xl font-semibold flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-primary" />
-              AI Resources
-            </h2>
-            <div className="border border-primary/20 bg-primary/[0.02] overflow-hidden rounded-2xl relative">
-              <div className="absolute top-0 right-0 p-8 opacity-5">
-                <Sparkles size={120} className="text-primary" />
-              </div>
-              <div className="p-6">
-                <h3 className="text-2xl font-bold">Daily Tokens</h3>
-                <p className="text-sm text-muted-foreground">Your credits refresh every 24 hours at 12 AM.</p>
-              </div>
-              <div className="px-6 pb-6 space-y-6">
-                <div className="flex flex-col md:flex-row md:items-end gap-6 md:gap-12">
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Remaining Balance</p>
-                    <p className="text-5xl font-black text-foreground">
-                      {credits !== null ? `${(credits / 1000).toFixed(1)}K` : "---"}
-                      <span className="text-lg font-bold text-muted-foreground ml-2">/ 150K</span>
-                    </p>
-                  </div>
-                  <div className="flex-1 space-y-2">
-                    <div className="flex justify-between text-xs font-medium mb-1">
-                      <span className="text-muted-foreground">Daily Usage</span>
-                      <span className="text-primary">{credits !== null ? Math.round(( (150000 - credits) / 150000 ) * 100) : 0}% used</span>
-                    </div>
-                    <div className="h-3 w-full bg-primary/10 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-primary transition-all duration-1000 ease-out shadow-[0_0_12px_rgba(158,127,255,0.4)]" 
-                        style={{ width: `${credits !== null ? (credits / 150000) * 100 : 0}%` }}
-                      />
-                    </div>
-                  </div>
+          <section className="grid md:grid-cols-3 gap-8">
+            <div className="md:col-span-1 space-y-2">
+                <h2 className="text-xl font-black flex items-center gap-2 tracking-tight">
+                  <Sparkles className="w-5 h-5 text-primary" />
+                  Resources
+                </h2>
+                <p className="text-sm text-muted-foreground leading-relaxed">Daily token allocation and usage breakdown.</p>
+                <div className="pt-4">
                   <Button 
                     variant="outline" 
                     size="sm" 
                     onClick={() => fetchCredits()}
-                    className="shrink-0 h-10 px-4 rounded-xl border-primary/20 bg-background hover:bg-primary/5 text-primary"
+                    className="h-9 px-4 rounded-xl border-border bg-muted/20 hover:bg-muted text-foreground transition-all"
                   >
-                    <RefreshCw className="w-4 h-4 mr-2" />
-                    Refresh
+                    <RefreshCw className="w-3.5 h-3.5 mr-2" />
+                    Sync
                   </Button>
                 </div>
+            </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-primary/10">
-                  <div className="flex items-start gap-3 p-3 rounded-xl bg-background/50 border border-border/40">
-                    <div className="size-8 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-500 shrink-0">
-                      <Zap size={16} />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold uppercase text-muted-foreground/60">Chat</p>
-                      <p className="text-sm font-semibold">1,000 credits/msg</p>
-                    </div>
+            <div className="md:col-span-2 space-y-12">
+              <div className="space-y-4">
+                <div className="flex flex-col gap-2">
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] mb-1">Available Credits</p>
+                  <p className="text-6xl font-black text-foreground tracking-tighter">
+                    {credits !== null ? `${(credits / 1000).toFixed(1)}K` : "---"}
+                    <span className="text-2xl font-bold text-muted-foreground/40 ml-4">/ 150K</span>
+                  </p>
+                </div>
+                
+                <div className="space-y-3 pt-4">
+                  <div className="flex justify-between text-[11px] font-black uppercase tracking-widest">
+                    <span className="text-muted-foreground">Daily Consumption</span>
+                    <span className="text-primary">{credits !== null ? Math.round(( (150000 - credits) / 150000 ) * 100) : 0}% used</span>
                   </div>
-                  <div className="flex items-start gap-3 p-3 rounded-xl bg-background/50 border border-border/40">
-                    <div className="size-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500 shrink-0">
-                      <Cpu size={16} />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold uppercase text-muted-foreground/60">Quick Edit</p>
-                      <p className="text-sm font-semibold">500 credits/edit</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3 p-3 rounded-xl bg-background/50 border border-border/40">
-                    <div className="size-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-500 shrink-0">
-                      <CheckCircle2 size={16} />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold uppercase text-muted-foreground/60">Completion</p>
-                      <p className="text-sm font-semibold">100 credits/hint</p>
-                    </div>
+                  <div className="h-2 w-full bg-muted/30 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-primary transition-all duration-1000 ease-out shadow-[0_0_15px_rgba(var(--primary),0.3)]" 
+                      style={{ width: `${credits !== null ? (credits / 150000) * 100 : 0}%` }}
+                    />
                   </div>
                 </div>
               </div>
-              <div className="bg-primary/5 px-6 py-4 flex justify-between items-center">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Clock className="size-3.5" />
-                  Next refresh: 12:00 AM local time
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
+                <div className="space-y-3">
+                  <div className="size-10 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500">
+                    <Zap size={20} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase text-muted-foreground/60 tracking-wider">Chat</p>
+                    <p className="text-sm font-bold">1k / msg</p>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <div className="size-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500">
+                    <Cpu size={20} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase text-muted-foreground/60 tracking-wider">Editor</p>
+                    <p className="text-sm font-bold">500 / edit</p>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <div className="size-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+                    <CheckCircle2 size={20} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase text-muted-foreground/60 tracking-wider">Hints</p>
+                    <p className="text-sm font-bold">100 / hint</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-8 border-t border-border/10 flex flex-col sm:flex-row gap-6 justify-between items-center">
+                <div className="flex items-center gap-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                  <Clock className="size-3.5 text-primary/60" />
+                  Auto-Refresh at 12:00 AM
                 </div>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div className="cursor-help">
-                      <Button size="sm" disabled className="rounded-xl font-bold bg-primary text-primary-foreground shadow-lg opacity-50 grayscale cursor-not-allowed">
-                        <CreditCard className="size-4 mr-2" />
-                        Upgrade to Pro
+                    <div className="cursor-not-allowed">
+                      <Button size="sm" disabled className="rounded-xl font-black uppercase tracking-widest text-[11px] bg-primary text-primary-foreground shadow-xl opacity-50 grayscale h-10 px-8">
+                        Upgrade Plans
                       </Button>
                     </div>
                   </TooltipTrigger>
-                  <TooltipContent side="top" className="bg-foreground text-background font-medium">
-                    This feature has not been built yet.
+                  <TooltipContent side="top" className="bg-foreground text-background font-bold text-xs px-4 py-2 rounded-lg">
+                    COMING SOON
                   </TooltipContent>
                 </Tooltip>
               </div>
@@ -157,62 +155,49 @@ export default function SettingsPage() {
           </section>
 
           {/* Appearance Section */}
-          <section className="space-y-4 pt-4">
-            <h2 className="text-xl font-semibold flex items-center gap-2 text-foreground">
-              <Sun className="w-5 h-5" />
-              Appearance
-            </h2>
-            <div className="rounded-2xl overflow-hidden border border-border/40">
-              <div className="bg-muted/30 p-6 border-b border-border/40">
-                <h3 className="text-lg font-semibold">Theme Preferences</h3>
-                <p className="text-sm text-muted-foreground">Customize the interface mode for your eyes.</p>
-              </div>
-              <div className="p-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <button
-                  onClick={() => setTheme("light")}
-                  className={cn(
-                    "flex flex-col items-center gap-3 p-6 rounded-2xl border-2 transition-all",
-                    theme === "light" 
-                      ? "border-primary bg-primary/5 ring-1 ring-primary/20" 
-                      : "border-border/40 hover:bg-muted/50"
-                  )}
-                >
-                  <div className="size-12 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500">
-                    <Sun size={24} />
-                  </div>
-                  <span className="text-sm font-bold uppercase tracking-wide">Light</span>
-                </button>
-
-                <button
-                  onClick={() => setTheme("dark")}
-                  className={cn(
-                    "flex flex-col items-center gap-3 p-6 rounded-2xl border-2 transition-all",
-                    theme === "dark" 
-                      ? "border-primary bg-primary/5 ring-1 ring-primary/20" 
-                      : "border-border/40 hover:bg-muted/50"
-                  )}
-                >
-                  <div className="size-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500">
-                    <Moon size={24} />
-                  </div>
-                  <span className="text-sm font-bold uppercase tracking-wide">Dark</span>
-                </button>
-
-                <button
-                  onClick={() => setTheme("system")}
-                  className={cn(
-                    "flex flex-col items-center gap-3 p-6 rounded-2xl border-2 transition-all",
-                    theme === "system" 
-                      ? "border-primary bg-primary/5 ring-1 ring-primary/20" 
-                      : "border-border/40 hover:bg-muted/50"
-                  )}
-                >
-                  <div className="size-12 rounded-xl bg-muted flex items-center justify-center text-muted-foreground">
-                    <Monitor size={24} />
-                  </div>
-                  <span className="text-sm font-bold uppercase tracking-wide">System</span>
-                </button>
-              </div>
+          <section className="grid md:grid-cols-3 gap-8 border-t border-border/10 pt-20">
+            <div className="md:col-span-1 space-y-2">
+              <h2 className="text-xl font-black flex items-center gap-2 tracking-tight text-foreground">
+                <Sun className="w-5 h-5" />
+                Interface
+              </h2>
+              <p className="text-sm text-muted-foreground leading-relaxed">Customize the visual mode of Vibe.</p>
+            </div>
+            
+            <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-6">
+              {[
+                { id: "light", label: "Light", icon: Sun, color: "text-orange-500", bg: "bg-orange-500/10" },
+                { id: "dark", label: "Dark", icon: Moon, color: "text-blue-500", bg: "bg-blue-500/10" },
+                { id: "system", label: "System", icon: Monitor, color: "text-foreground", bg: "bg-muted/40" }
+              ].map((item) => {
+                const Icon = item.icon;
+                const isActive = theme === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => setTheme(item.id)}
+                    className={cn(
+                      "flex flex-col items-center gap-5 p-8 rounded-3xl border-2 transition-all group relative overflow-hidden",
+                      isActive 
+                        ? "border-primary bg-primary/5 ring-1 ring-primary/20 shadow-lg" 
+                        : "border-border/30 hover:border-primary/20 hover:bg-muted/20"
+                    )}
+                  >
+                    <div className={cn(
+                      "size-16 rounded-2xl flex items-center justify-center transition-all group-hover:scale-110 shadow-sm duration-500",
+                      isActive ? "bg-primary text-primary-foreground" : cn(item.bg, item.color)
+                    )}>
+                      <Icon size={32} />
+                    </div>
+                    <span className="text-[11px] font-black uppercase tracking-[0.2em]">{item.label}</span>
+                    {isActive && (
+                        <div className="absolute top-2 right-2">
+                             <CheckCircle2 className="size-4 text-primary" />
+                        </div>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </section>
 

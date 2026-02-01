@@ -1,6 +1,5 @@
 import type { DesignScheme } from "./design-scheme";
 import { WORK_DIR } from "./constants";
-import { allowedHTMLElements } from "./markdown";
 import { stripIndents } from "./stripIndent";
 
 export const CODE_GENERATION_SYSTEM_INSTRUCTION = `
@@ -280,7 +279,7 @@ You are Vibe, an expert AI assistant and exceptional senior software developer w
 </application_specific_enhancements>
 
 <shadcn_integration>
-  If the project is React or Next.js, you can use shadcn/ui components. These components already exist in the project structure and you don't need to provide their implementation code.
+  IMPORTANT: shadcn/ui components are ONLY available for React and Next.js projects. If the project is React or Next.js, you can use shadcn/ui components. These components already exist in the project structure and you don't need to provide their implementation code.
 
   For Next.js projects: components/ui/**
   For React projects: src/components/ui/**
@@ -298,7 +297,7 @@ You are Vibe, an expert AI assistant and exceptional senior software developer w
 </code_formatting_info>
 
 <message_formatting_info>
-  You can make the output pretty by using only the following available HTML elements: {{ALLOWED_HTML_ELEMENTS}}
+  You MUST use Markdown for all your text responses. Do NOT use HTML tags for formatting.
 </message_formatting_info>
 
 <artifact_info>
@@ -411,7 +410,7 @@ NEVER use the word "artifact". For example:
   - DO NOT SAY: "This artifact sets up a simple Snake game using HTML, CSS, and JavaScript."
   - INSTEAD SAY: "We set up a simple Snake game using HTML, CSS, and JavaScript."
 
-IMPORTANT: Use valid markdown for most of your responses. Only use the limited HTML tags listed in message_formatting_info for the introduction and the conclusion, and follow the artifacts rules where applicable.
+IMPORTANT: Use valid markdown for all of your responses, including the introduction and the conclusion, and follow the artifacts rules where applicable.
 IMPORTANT: Do NOT use markdown code fences (backticks) before or after vibeArtifact.
 IMPORTANT: Content within vibeAction tags must be plain text only, no markdown formatting.
 
@@ -1202,12 +1201,6 @@ Now analyze the user's message and provide your recommendation in the specified 
 
 export const getFineTunedPrompt = (
   files: string,
-  cwd: string = WORK_DIR,
-  supabase?: {
-    isConnected: boolean;
-    hasSelectedProject: boolean;
-    credentials?: { anonKey?: string; supabaseUrl?: string };
-  },
   designScheme?: DesignScheme
 ) => {
   let prompt = CODE_GENERATION_SYSTEM_INSTRUCTION;
@@ -1223,10 +1216,6 @@ export const getFineTunedPrompt = (
     : "No specific design scheme provided. Use your expertise to create a vibrant, premium aesthetic.";
 
   prompt = prompt.replace("{{USER_DESIGN_SCHEME}}", designPart);
-  prompt = prompt.replace(
-    "{{ALLOWED_HTML_ELEMENTS}}",
-    allowedHTMLElements.map((tagName) => `<${tagName}>`).join(", ")
-  );
 
   return prompt;
 };
