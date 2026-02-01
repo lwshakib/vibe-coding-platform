@@ -6,7 +6,7 @@ import { headers } from "next/headers";
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { workspaceId: string } }
+  { params }: { params: Promise<{ workspaceId: string }> }
 ) {
   const session = await auth.api.getSession({
     headers: await headers(),
@@ -16,7 +16,7 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { workspaceId } = params;
+  const { workspaceId } = await params;
 
   try {
     const workspace = await prisma.workspace.findUnique({
