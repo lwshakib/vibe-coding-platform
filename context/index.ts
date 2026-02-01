@@ -25,6 +25,7 @@ export type Workspace = {
   userId: string;
   app_type: AppType;
   files: any;
+  detectedPaths?: string[];
   updatedAt: string;
   createdAt: string;
   messages?: any[];

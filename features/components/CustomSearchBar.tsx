@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ExternalLink, RotateCcw, Lock, Globe, Search, ChevronRight } from "lucide-react";
+import { ExternalLink, RotateCcw, Globe, ChevronRight, Sparkles, Loader2, RefreshCw, Search } from "lucide-react";
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { cn } from "@/lib/utils";
 import {
@@ -14,10 +14,11 @@ import { Label } from "@/components/ui/label";
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { AnimatePresence, motion } from "motion/react";
+import { useWorkspaceStore } from "@/context";
+import { toast } from "sonner";
 
 interface CustomSearchBarProps {
   value: string;
@@ -34,66 +35,6 @@ interface CustomSearchBarProps {
   files?: any;
 }
 
-const extractPathsFromFiles = (files: any): string[] => {
-  if (!files) return ["/"];
-
-  const paths = new Set<string>();
-  paths.add("/");
-
-  const entries = Object.entries(files);
-
-  entries.forEach(([filePath, fileData]: [string, any]) => {
-    // 1. App Router: app/**/page.tsx
-    const appMatch = filePath.match(/(?:^|src\/)app\/(.*)\/page\.[jt]sx?$/);
-    if (appMatch) {
-      const route = "/" + appMatch[1]
-        .split('/')
-        .filter(part => !part.startsWith('(') && !part.endsWith(')'))
-        .join('/');
-      paths.add(route.replace(/\/+$/, "") || "/");
-    } else if (filePath.match(/(?:^|src\/)app\/page\.[jt]sx?$/)) {
-      paths.add("/");
-    }
-
-    // 2. Pages Router: pages/**/index.tsx
-    const pagesMatch = filePath.match(/(?:^|src\/)pages\/(.*)\.[jt]sx?$/);
-    if (pagesMatch) {
-      let route = "/" + pagesMatch[1];
-      if (!route.includes("_app") && !route.includes("_document") && !route.includes("/api/")) {
-        route = route.replace(/\/index$/, "") || "/";
-        paths.add(route);
-      }
-    }
-
-    // 3. Simple content parsing for links
-    if (fileData && typeof fileData.content === 'string') {
-      const content = fileData.content;
-      const hrefRegex = /href=["'](\/[^"'\s>{]+)["']/g;
-      const toRegex = /to=["'](\/[^"'\s>{]+)["']/g;
-
-      let match;
-      while ((match = hrefRegex.exec(content)) !== null) {
-        const p = match[1];
-        if (p && !p.includes('.') && !p.startsWith('//') && p.length > 1) {
-          paths.add(p);
-        }
-      }
-      while ((match = toRegex.exec(content)) !== null) {
-        const p = match[1];
-        if (p && !p.includes('.') && !p.startsWith('//') && p.length > 1) {
-          paths.add(p);
-        }
-      }
-    }
-  });
-
-  return Array.from(paths).sort((a, b) => {
-    if (a === "/") return -1;
-    if (b === "/") return 1;
-    return a.localeCompare(b);
-  });
-};
-
 export const CustomSearchBar: React.FC<CustomSearchBarProps> = ({
   value,
   onChange,
@@ -108,11 +49,13 @@ export const CustomSearchBar: React.FC<CustomSearchBarProps> = ({
   disabled,
   files,
 }) => {
+  const { currentWorkspace, setCurrentWorkspace } = useWorkspaceStore();
   const [isFocused, setIsFocused] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [localValue, setLocalValue] = useState(value);
   const [localPort, setLocalPort] = useState(port.toString());
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -125,7 +68,15 @@ export const CustomSearchBar: React.FC<CustomSearchBarProps> = ({
     setLocalPort(port.toString());
   }, [port]);
 
-  const allPaths = useMemo(() => extractPathsFromFiles(files), [files]);
+  const detectedPaths = currentWorkspace?.detectedPaths || [];
+  
+  const allPaths = useMemo(() => {
+    return Array.from(new Set(detectedPaths)).sort((a, b) => {
+      if (a === "/") return -1;
+      if (b === "/") return 1;
+      return a.localeCompare(b);
+    });
+  }, [detectedPaths]);
 
   const filteredSuggestions = useMemo(() => {
     if (!localValue || localValue === "/") return allPaths;
@@ -160,6 +111,31 @@ export const CustomSearchBar: React.FC<CustomSearchBarProps> = ({
     onChange(path);
     onSubmit(path);
     setShowSuggestions(false);
+  };
+
+  const handleAnalyzePaths = async () => {
+    if (!currentWorkspace) return;
+    
+    setIsAnalyzing(true);
+    try {
+      const res = await fetch(`/api/workspaces/${currentWorkspace.id}/analyze-paths`, {
+        method: "POST",
+      });
+      
+      if (!res.ok) throw new Error("Failed to analyze paths");
+      
+      const data = await res.json();
+      setCurrentWorkspace({
+        ...currentWorkspace,
+        detectedPaths: data.paths,
+      });
+      toast.success("Paths analyzed successfully");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to analyze project structure");
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   // Handle click outside for suggestions
@@ -292,13 +268,6 @@ export const CustomSearchBar: React.FC<CustomSearchBarProps> = ({
             }}
             onBlur={(e) => {
               setIsFocused(false);
-              // Delay blur to allow suggestion clicking if not handled by click-outside
-              if (!localValue.trim() || localValue === "/") {
-                setLocalValue("/");
-                onChange("/");
-              } else {
-                onChange(localValue);
-              }
             }}
             disabled={disabled}
             className={cn(
@@ -315,50 +284,98 @@ export const CustomSearchBar: React.FC<CustomSearchBarProps> = ({
         </div>
       </div>
 
-      {/* Suggestions Dropdown */}
+      {/* Popover / Suggestions Dropdown */}
       <AnimatePresence>
-        {showSuggestions && filteredSuggestions.length > 0 && (
+        {showSuggestions && (
           <motion.div
             initial={{ opacity: 0, y: -10, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.98 }}
-            className="absolute top-full left-0 right-0 mt-3 py-2 bg-background/98 backdrop-blur-xl border border-border/60 rounded-xl shadow-2xl z-[100] overflow-hidden"
+            className="absolute top-full left-0 right-0 mt-3 py-3 bg-background/98 backdrop-blur-xl border border-border/60 rounded-xl shadow-2xl z-[100] overflow-hidden"
           >
-            <div className="px-3 pb-1 mb-1 border-b border-border/40 flex items-center justify-between">
+            <div className="px-4 pb-3 mb-2 border-b border-border/40 flex items-center justify-between">
               <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">
-                Project Paths
+                Route Navigator
               </span>
-              <span className="text-[10px] text-muted-foreground/40">
-                {filteredSuggestions.length} found
-              </span>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleAnalyzePaths();
+                }}
+                disabled={isAnalyzing}
+                className={cn(
+                  "flex items-center justify-center p-1.5 transition-all text-primary hover:opacity-80 active:scale-90",
+                  "bg-transparent border-none shadow-none outline-none focus:ring-0",
+                  isAnalyzing && "opacity-50 cursor-not-allowed"
+                )}
+                title={detectedPaths.length > 0 ? "Re-analyze Routes" : "Analyze Routes"}
+              >
+                {isAnalyzing ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : detectedPaths.length > 0 ? (
+                  <RefreshCw className="w-4 h-4" />
+                ) : (
+                  <Sparkles className="w-4 h-4" />
+                )}
+              </button>
             </div>
+
             <div className="max-h-[300px] overflow-y-auto overflow-x-hidden custom-scrollbar">
-              {filteredSuggestions.map((path) => (
-                <button
-                  key={path}
-                  onClick={() => handleSelectPath(path)}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-left hover:bg-muted/80 transition-all group relative"
-                >
-                  <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-primary/5 text-primary/60 group-hover:bg-primary/10 group-hover:text-primary transition-all">
-                    <Globe className="w-3.5 h-3.5" />
-                  </div>
-                  <div className="flex flex-col min-w-0">
-                    <span className="font-semibold truncate text-foreground/90 group-hover:text-foreground">
-                      {path}
-                    </span>
-                    {path === "/" && (
-                      <span className="text-[10px] text-muted-foreground/60">
-                        Home Page
-                      </span>
-                    )}
-                  </div>
-                  <ChevronRight className="ml-auto w-3.5 h-3.5 text-muted-foreground/20 group-hover:text-primary/60 transition-colors" />
-                  
-                  {path === value && (
-                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-6 bg-primary rounded-r-full" />
+              {detectedPaths.length === 0 && !isAnalyzing ? (
+                <div className="py-12 px-8 text-center animate-in fade-in zoom-in-95 duration-500">
+                  <h3 className="text-lg font-bold text-foreground mb-3">Ready to Discover?</h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed mb-10 max-w-[240px] mx-auto">
+                    Use our AI to scan your workspace and build a live map of your application routes.
+                  </p>
+                  <Button
+                    className="w-full h-11 rounded-xl font-bold text-xs uppercase tracking-widest bg-primary shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all group"
+                    onClick={handleAnalyzePaths}
+                  >
+                    <Sparkles className="w-4 h-4 mr-2 group-hover:rotate-12 transition-transform" />
+                    Start AI Analysis
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  {filteredSuggestions.length > 0 ? (
+                    filteredSuggestions.map((path) => (
+                      <button
+                        key={path}
+                        onClick={() => handleSelectPath(path)}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left hover:bg-muted/80 transition-all group relative"
+                      >
+                        <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-primary/5 text-primary/60 group-hover:bg-primary/10 group-hover:text-primary transition-all">
+                          <Globe className="w-3.5 h-3.5" />
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <span className="font-semibold truncate text-foreground/90 group-hover:text-foreground">
+                            {path}
+                          </span>
+                          {path === "/" && (
+                            <span className="text-[10px] text-muted-foreground/60">
+                              Primary Entry Point
+                            </span>
+                          )}
+                        </div>
+                        <ChevronRight className="ml-auto w-3.5 h-3.5 text-muted-foreground/20 group-hover:text-primary/60 transition-colors" />
+                        
+                        {path === value && (
+                          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-6 bg-primary rounded-r-full" />
+                        )}
+                      </button>
+                    ))
+                  ) : (
+                    <div className="py-12 px-4 text-center">
+                      <div className="size-12 rounded-full bg-muted/30 flex items-center justify-center mx-auto mb-4">
+                        <Search className="w-6 h-6 text-muted-foreground/40" />
+                      </div>
+                      <p className="text-sm font-semibold text-foreground/60">No matching paths</p>
+                      <p className="text-xs text-muted-foreground/60 mt-1">Try a different search term or re-analyze.</p>
+                    </div>
                   )}
-                </button>
-              ))}
+                </>
+              )}
             </div>
           </motion.div>
         )}

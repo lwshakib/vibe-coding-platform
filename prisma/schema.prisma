@@ -96,15 +96,16 @@ model Verification {
 
 
 model Workspace {
-  id        String   @id @default(cuid())
-  name      String
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  app_type  AppType  
-  files     Json
-  messages  Message[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String   @id @default(cuid())
+  name          String
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  app_type      AppType  
+  files         Json
+  detectedPaths Json?
+  messages      Message[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
 
