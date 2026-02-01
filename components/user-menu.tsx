@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Sun, Moon, LogOut, User, Settings, Sparkles } from "lucide-react";
+import { Sun, Moon, LogOut, User, Settings, Sparkles, LayoutGrid } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function UserMenu() {
@@ -57,6 +57,16 @@ export function UserMenu() {
         <DropdownMenuSeparator className="bg-border/10 mx-1" />
         
         <div className="py-1">
+          <DropdownMenuItem
+            className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer hover:bg-muted font-medium text-sm transition-colors group mb-0.5"
+            onClick={() => router.push("/workspaces")}
+          >
+            <div className="flex size-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-500 group-hover:bg-emerald-500/20 transition-colors">
+              <LayoutGrid className="size-4" />
+            </div>
+            <span className="flex-1">Workspaces</span>
+          </DropdownMenuItem>
+
           <DropdownMenuItem
             className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer hover:bg-muted font-medium text-sm transition-colors group mb-0.5"
             onClick={() => router.push("/account")}
