@@ -21,6 +21,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/logo";
 import { UserMenu } from "@/components/user-menu";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -138,10 +139,19 @@ export default function SettingsPage() {
                   <Clock className="size-3.5" />
                   Next refresh: 12:00 AM local time
                 </div>
-                <Button size="sm" className="rounded-xl font-bold bg-primary text-primary-foreground shadow-lg hover:bg-primary/90">
-                  <CreditCard className="size-4 mr-2" />
-                  Upgrade to Pro
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="cursor-help">
+                      <Button size="sm" disabled className="rounded-xl font-bold bg-primary text-primary-foreground shadow-lg opacity-50 grayscale cursor-not-allowed">
+                        <CreditCard className="size-4 mr-2" />
+                        Upgrade to Pro
+                      </Button>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="bg-foreground text-background font-medium">
+                    This feature has not been built yet.
+                  </TooltipContent>
+                </Tooltip>
               </div>
             </div>
           </section>

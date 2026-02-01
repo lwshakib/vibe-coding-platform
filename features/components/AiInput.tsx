@@ -4,6 +4,7 @@ import React, { useState, useRef } from "react";
 import { Paperclip, Sparkles, SendHorizontal, Code, X } from "lucide-react";
 import { useChat } from "@ai-sdk/react";
 import { useWorkspaceStore } from "@/context";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface AiInputProps {
   onSend: (text: string, files: File[]) => void;
@@ -46,9 +47,16 @@ const AiInput: React.FC<AiInputProps> = ({ onSend }) => {
             <span className="text-muted-foreground">
               {credits !== null ? `${(credits / 1000).toFixed(1)}K` : "---"} daily tokens remaining.
             </span>
-            <button className="text-primary font-semibold hover:underline">
-              Upgrade to Pro
-            </button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button disabled className="text-primary font-semibold opacity-50 cursor-not-allowed">
+                  Upgrade to Pro
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="bg-foreground text-background font-medium mb-1">
+                This feature has not been built yet.
+              </TooltipContent>
+            </Tooltip>
           </div>
         </div>
 
