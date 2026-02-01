@@ -1,48 +1,65 @@
-# Contributor Covenant Code of Conduct
+# 🛡️ Vibe Community - Code of Conduct
 
-## Our Pledge
+## 🌟 Our Pledge
 
-In the interest of fostering an open and welcoming environment, we as contributors and maintainers pledge to making participation in our project and our community a harassment-free experience for everyone, regardless of age, body size, disability, ethnicity, sex characteristics, gender identity and expression, level of experience, education, socio-economic status, nationality, personal appearance, race, religion, or sexual identity and orientation.
+As contributors and maintainers of the **Vibe Platform**, we pledge to make participation in our project and community a harassment-free experience for everyone, regardless of age, body size, disability, ethnicity, gender identity and expression, level of experience, education, socio-economic status, nationality, personal appearance, race, religion, or sexual identity and orientation.
 
-## Our Standards
+We are committed to fostering an environment that is inclusive, safe, and professional.
 
-Examples of behavior that contributes to creating a positive environment include:
+---
 
-- Using welcoming and inclusive language
-- Being respectful of differing viewpoints and experiences
-- Gracefully accepting constructive criticism
-- Focusing on what is best for the community
-- Showing empathy towards other community members
+## 🏗️ Our Standards
 
-Examples of unacceptable behavior by participants include:
+### ✅ Positive Behaviors (Encouraged)
+* **Empathy First**: Treat every community member with kindness. 
+* **Quality Constructive Criticism**: Focus on the code and the problem, not the person.
+* **Mentorship**: Help newcomers find their footing in our complex WebContainer architecture.
+* **Acknowledgement**: Credit others for their ideas and contributions.
 
-- The use of sexualized language or imagery and unwelcome sexual attention or advances
-- Trolling, insulting/derogatory comments, and personal or political attacks
-- Public or private harassment
-- Publishing others' private information, such as a physical or electronic address, without explicit permission
-- Other conduct which could reasonably be considered inappropriate in a professional setting
+### ❌ Unacceptable Behaviors (Prohibited)
+* **Harassment**: Sexualized language, unwelcome advances, or personal attacks.
+* **Trolling**: Sustained disruption of threads or community spaces.
+* **Doxing**: Publishing private information without explicit permission.
+* **Exclusionary Language**: Any form of discriminatory speech.
 
-## Our Responsibilities
+---
 
-Project maintainers are responsible for clarifying the standards of acceptable behavior and are expected to take appropriate and fair corrective action in response to any instances of unacceptable behavior.
+## ⚖️ Enforcement & Consequences
 
-Project maintainers have the right and responsibility to remove, edit, or reject comments, commits, code, wiki edits, issues, and other contributions that are not aligned to this Code of Conduct, or to ban temporarily or permanently any contributor for other behaviors that they deem inappropriate, threatening, offensive, or harmful.
+The Vibe maintainers are responsible for clarifying and enforcing our standards. We take all reports of misconduct seriously.
 
-## Scope
+### 1. Reporting an Incident
+If you witness or experience unacceptable behavior, please report it immediately to the Vibe team at **support@vibe.dev**. All complaints will be:
+1. **Confidential**: Your identity will be protected.
+2. **Investigated**: We will review the context and evidence.
+3. **Responded To**: You will receive a notification of our decision within 72 hours.
 
-This Code of Conduct applies both within project spaces and in public spaces when an individual is representing the project or its community. Examples of representing a project or community include using an official project e-mail address, posting via an official social media account, or acting as an appointed representative at an online or offline event. Representation of a project may be further defined and clarified by project maintainers.
+### 2. Enforcement Tiers
 
-## Enforcement
+| Tier | Violation Level | Consequence |
+| :--- | :--- | :--- |
+| **Tier 1: Warning** | Minor infraction or accidental boundary crossing. | A private, written warning from a maintainer clarifying the standard. |
+| **Tier 2: Suspension** | Repeated Tier 1 violations or a single instance of serious intentional harassment. | A temporary ban (7-30 days) from all community spaces (Discord, GitHub). |
+| **Tier 3: Permanent Ban** | Severe harassment, repeated Tier 2 violations, or illegal activity. | A permanent expulsion from the Vibe ecosystem and reporting to relevant platforms. |
 
-Instances of abusive, harassing, or otherwise unacceptable behavior may be reported by contacting the project team at support@vibe.dev. All complaints will be reviewed and investigated and will result in a response that is deemed necessary and appropriate to the circumstances. The project team is obligated to maintain confidentiality with regard to the reporter of an incident. Further details of specific enforcement policies may be posted separately.
+---
 
-Project maintainers who do not follow or enforce the Code of Conduct in good faith may face temporary or permanent repercussions as determined by other members of the project's leadership.
+## 🗺️ Scope
 
-## Attribution
+This Code of Conduct applies within all project spaces managed by Vibe, including:
+- **GitHub**: Issues, Pull Requests, and Discussions.
+- **Discord**: All channels and private messages between community members.
+- **Social Media**: Official Vibe accounts and their interactions.
+- **IRL Events**: Any physical meetups or conferences where Vibe is formally represented.
 
-This Code of Conduct is adapted from the [Contributor Covenant][homepage], version 1.4, available at https://www.contributor-covenant.org/version/1/4/code-of-conduct.html
+---
+
+## 📜 Attribution
+
+This Code of Conduct is adapted from the [Contributor Covenant][homepage], version 1.4, available at [https://www.contributor-covenant.org/version/1/4/code-of-conduct.html](https://www.contributor-covenant.org/version/1/4/code-of-conduct.html)
 
 [homepage]: https://www.contributor-covenant.org
 
-For answers to common questions about this code of conduct, see
-https://www.contributor-covenant.org/faq
+---
+
+**Thank you for helping us build a better coding future!**

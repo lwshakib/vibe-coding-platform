@@ -1,257 +1,164 @@
-# 🚀 Vibe - AI-Powered Browser-Based Coding Platform
+# 🚀 Vibe: The Evolution of Browser-Based AI Development
 
 [![Next.js](https://img.shields.io/badge/Next.js-16.1-black?style=flat-square&logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
 [![Prisma](https://img.shields.io/badge/Prisma-7.2-2D3748?style=flat-square&logo=prisma)](https://www.prisma.io/)
 [![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
 
-> **Vibe** is the ultimate AI-powered coding platform that enables you to build, preview, and deploy full-stack web applications directly in your browser. No setup required, just start coding!
+**Vibe** is an ambitious, high-performance, and AI-first coding platform that eliminates the barrier between ideation and production. By running a full-stack **Node.js runtime (WebContainer)** directly within the user's browser thread and pairing it with **Advanced Generative AI**, Vibe allows developers to build, test, and deploy entire applications using nothing but natural language and a browser tab.
 
 ![Vibe Platform](./public/vibe-editor-screenshot.png)
 
-## ✨ Features
+---
 
-### 🤖 AI-Powered Development
+## 🌟 Vision & Purpose
+Most IDEs require heavy local setups, complex containerization, or expensive remote VMs. Vibe flips the script:
+1. **Zero Configuration**: No `node_modules` on your disk. No Docker containers to manage.
+2. **AI-Native Workflow**: The AI isn't just a chatbot; it's a collaborator that has direct access to your file system and terminal.
+3. **Instant Manifestation**: Changes aren't just suggested—they are applied, built, and hot-swapped in milliseconds.
 
-- **Intelligent Code Completions** - Google Gemini AI-powered suggestions
-- **Smart Code Generation** - Generate entire components with natural language
-- **Context-Aware Assistance** - AI understands your codebase
+---
 
-### 💻 In-Browser Development
+## 🏗️ Technical Architecture Details
 
-- **WebContainer Technology** - Full Node.js runtime in the browser
-- **Live Terminal** - Interactive shell with full command support
-- **Real-time Preview** - See changes instantly with hot-reload
-- **No Setup Required** - Start coding immediately
+Vibe is constructed using a modern, distributed architecture that balances client-side power with server-side intelligence.
 
-### 🎨 Professional Code Editor
+### 1. The Browser Engine (The "Frontend")
+- **WebContainer**: A POSIX-compliant operating system runtime that boots in milliseconds. It handles all file system operations, networking, and shell execution.
+- **CodeMirror 6**: A state-of-the-art modular text editor providing a desktop-class coding experience with support for thousands of languages.
+- **XTerm.js**: The industry standard for terminal emulation, providing full ANSI color support and low-latency interaction.
+- **Zustand State Engine**: Every keystroke, file change, and AI interaction is managed through a centralized, reactive store.
 
-- **Syntax Highlighting** - Powered by CodeMirror
-- **Multi-file Support** - Work with entire project structures
-- **File Explorer** - Intuitive tree-based navigation
-- **Tab Management** - Work with multiple files simultaneously
+### 2. The AI & Processing Layer (The "Intelligence")
+- **Google Gemini Pro (Vision & Text)**: Our primary LLM provider. Vibe uses specific prompt orchestration to ensure the AI generates "Artifacts"—atomic, parseable code blocks that represent file changes.
+- **Nebius / Deepgram**: Used for auxiliary AI tasks like audio processing or advanced inference optimization.
 
-### 🔧 Framework Support
+### 3. The Persistence Layer (The "Backend")
+- **Prisma & PostgreSQL**: A robust relational database schema that tracks every workspace, user credit, and message history.
+- **Better Auth**: A developer-friendly authentication framework that secures the platform while allowing seamless OAuth integration with Google and GitHub.
 
-- ⚛️ React
-- ⚡ Vite
-- 🔺 Next.js
-- 📦 Express.js
-- 🎯 And more coming soon!
+---
 
-### 🌙 Modern UI/UX
+## ⚙️ Detailed Setup & Installation
 
-- Dark & Light themes
-- Responsive design
-- Smooth animations
-- Professional aesthetics
+Follow these steps to get your own instance of Vibe running locally for development.
 
-## 🚀 Quick Start
+### 1. Repository Setup
 
-### Prerequisites
-
-- Node.js 18+ or Bun
-- PostgreSQL database
-- Google Gemini API key
-
-### Installation
-
-1. **Clone the repository**
+The first step is to bring the Vibe source code to your local machine using Git.
 
 ```bash
-git clone https://github.com/yourusername/vibe-coding-platform.git
+# Clone the repository from GitHub
+# This downloads the entire project history and all branch information.
+git clone https://github.com/vibe-org/vibe-coding-platform.git
+
+# Navigate into the project directory
 cd vibe-coding-platform
 ```
 
-2. **Install dependencies**
+### 2. Dependency Management
+
+Vibe is optimized for **Bun**, but it also supports traditional Node.js/npm. Bun is recommended for its significantly faster installation speeds and runtime performance.
 
 ```bash
-# Using npm
-npm install
-
-# Using bun (recommended)
+# install via Bun (Recommended)
 bun install
+
+# OR via npm
+npm install
 ```
 
-3. **Set up environment variables**
+### 3. Environment Configuration (`.env`)
+
+Vibe requires several external services to function. Copy the example file and fill in your credentials.
 
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env` and add your credentials:
+#### 🔑 Required Variables Explained:
 
-```env
-# Database
-DATABASE_URL="postgresql://user:password@localhost:5432/vibe"
+| Variable | Description | Where to get it |
+| :--- | :--- | :--- |
+| `DATABASE_URL` | Connection string for your PostgreSQL database. | [Neon](https://neon.tech) or local Postgres. |
+| `BETTER_AUTH_SECRET` | A 32-character random string used for session encryption. | Any random generator. |
+| `BETTER_AUTH_URL` | The base URL of your app in development. | `http://localhost:3000` |
+| `GOOGLE_API_KEY` | Your primary key for Gemini AI. Supports comma-separated keys for load balancing. | [Google AI Studio](https://aistudio.google.com) |
+| `GITHUB_CLIENT_ID/SECRET` | Used for linking workspaces to GitHub repositories. | [GitHub Developer Settings](https://github.com/settings/developers) |
+| `CLOUDINARY_API_...` | Used for managing user images and asset hosting. | [Cloudinary Dashboard](https://cloudinary.com) |
+| `NEBIUS_API_KEY` | (Optional) Secondary LLM provider API key. | [Nebius AI](https://nebius.ai) |
 
-# Authentication
-BETTER_AUTH_SECRET="your-secret-key"
-BETTER_AUTH_URL="http://localhost:3000"
+### 4. Database Initialization
 
-# Google OAuth (optional)
-GOOGLE_CLIENT_ID="your-google-client-id"
-GOOGLE_CLIENT_SECRET="your-google-client-secret"
-
-# Google Gemini AI
-GOOGLE_GENERATIVE_AI_API_KEY="your-gemini-api-key"
-```
-
-4. **Set up the database**
+Since Vibe is a data-driven platform, you must initialize your schema.
 
 ```bash
-# Generate Prisma client
-bun db:generate
-
-# Run migrations
+# Sync your database with the Prisma schema
 bun db:migrate
+
+# Generate the Prisma client so TypeScript understands your models
+bun db:generate
 ```
 
-5. **Start the development server**
+### 5. Launch
 
 ```bash
+# Start the Next.js development server
 bun dev
 ```
-
-Open [http://localhost:3000](http://localhost:3000) in your browser!
-
-## 📁 Project Structure
-
-```
-vibe-coding-platform/
-├── app/                      # Next.js app directory
-│   ├── (auth)/              # Authentication pages
-│   ├── (main)/              # Main application pages
-│   └── api/                 # API routes
-├── components/              # Reusable UI components
-│   └── ui/                  # shadcn/ui components
-├── features/                # Feature-specific components
-│   ├── components/          # Chat, preview, input components
-│   └── editor/              # Code editor components
-├── context/                 # React context providers
-├── lib/                     # Utility functions
-├── prisma/                  # Database schema & migrations
-└── public/                  # Static assets
-```
-
-## 🛠️ Tech Stack
-
-### Frontend
-
-- **Framework**: Next.js 16.1 (App Router)
-- **UI Library**: React 19
-- **Styling**: Tailwind CSS v4
-- **Components**: shadcn/ui (Radix UI primitives)
-- **Animations**: Framer Motion
-- **Code Editor**: CodeMirror
-- **State Management**: Zustand
-
-### Backend
-
-- **Runtime**: Node.js / Bun
-- **Database**: PostgreSQL with Prisma ORM
-- **Authentication**: Better Auth
-- **AI**: Google Gemini (Generative AI)
-- **WebContainer**: StackBlitz WebContainer API
-
-### DevOps
-
-- **Type Checking**: TypeScript
-- **Linting**: ESLint
-- **Package Manager**: Bun (recommended) / npm
-
-## 📖 Usage
-
-### Creating a Workspace
-
-1. Navigate to `/workspaces`
-2. Click "New Workspace"
-3. Enter a workspace name
-4. Select your preferred framework
-5. Start coding!
-
-### AI Code Completions
-
-- Type naturally and press `Tab` to accept AI suggestions
-- AI learns from your codebase context
-- Supports multiple languages (JavaScript, TypeScript, HTML, CSS, etc.)
-
-### Using the Terminal
-
-- Access the built-in terminal at the bottom of the code editor
-- Run npm commands, install packages, start dev servers
-- Full Node.js environment powered by WebContainer
-
-### Live Preview
-
-- Switch between Code and Preview tabs
-- Support for multiple responsive breakpoints
-- Refresh or open in new tab options
-
-## 🔐 Environment Variables
-
-| Variable                       | Description                   | Required |
-| ------------------------------ | ----------------------------- | -------- |
-| `DATABASE_URL`                 | PostgreSQL connection string  | Yes      |
-| `BETTER_AUTH_SECRET`           | Secret for session encryption | Yes      |
-| `BETTER_AUTH_URL`              | Base URL of your application  | Yes      |
-| `GOOGLE_CLIENT_ID`             | Google OAuth client ID        | No       |
-| `GOOGLE_CLIENT_SECRET`         | Google OAuth client secret    | No       |
-| `GOOGLE_GENERATIVE_AI_API_KEY` | Google Gemini API key         | Yes      |
-
-## 📝 Available Scripts
-
-```bash
-# Development
-bun dev              # Start development server
-bun build            # Build for production
-bun start            # Start production server
-
-# Database
-bun db:generate      # Generate Prisma client
-bun db:migrate       # Run database migrations
-bun db:studio        # Open Prisma Studio
-bun db:reset         # Reset database
-
-# Code Quality
-bun lint             # Run ESLint
-```
-
-## 🤝 Contributing
-
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
-
-### Development Workflow
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- [Next.js](https://nextjs.org/) - The React framework
-- [StackBlitz](https://stackblitz.com/) - WebContainer technology
-- [Google](https://ai.google.dev/) - Gemini AI
-- [Vercel](https://vercel.com/) - Deployment platform
-- [shadcn/ui](https://ui.shadcn.com/) - Beautiful UI components
-
-## 📧 Support
-
-- 📖 [Documentation](https://docs.vibe.dev)
-- 💬 [Discord Community](https://discord.gg/vibe)
-- 🐛 [Issue Tracker](https://github.com/yourusername/vibe-coding-platform/issues)
-- 📧 [Email Support](mailto:support@vibe.dev)
-
-## 🌟 Star History
-
-If you find this project useful, please consider giving it a ⭐ on GitHub!
+Navigate to `http://localhost:3000` to start building!
 
 ---
 
-**Built with ❤️ by the Vibe Team**
+## 🗂️ Project Structure Deep-Dive
+
+For contributors, here is how the Vibe codebase is organized:
+
+```text
+vibe-coding-platform/
+├── app/                  # Next.js 16 App Router
+│   ├── (auth)/          # Authentication flow (Login, Register)
+│   ├── (main)/          # Dashboard, Workspaces, Account
+│   ├── api/             # API routes (Workspaces, AI, GitHub)
+│   └── layout.tsx       # Root layout with providers
+├── features/             # Business Logic Domains
+│   ├── editor/          # CodeMirror implementation
+│   ├── chat/            # AI interaction & Artifact parsing
+│   └── terminal/        # XTerm.js setup
+├── components/           # UI Components
+│   ├── ui/              # shadcn UI primitives
+│   └── footer/header    # Common page elements
+├── lib/                  # Universal Utilities
+│   ├── webcontainer.ts  # The Runtime manager
+│   ├── credits.ts       # Credit management logic
+│   └── github.ts        # Git sync service
+├── prisma/               # Database Schema
+└── context/              # Global State (Zustand & React Context)
+```
+
+---
+
+## 🛡️ Trust, Reliability & Credit System
+
+### The Vibe Credit System
+To ensure fair use of our AI resources, Vibe implements a robust credit system.
+- **Initial Grant**: 150,000 credits upon registration.
+- **Consumption**: Credits are consumed based on the token count of AI interactions.
+- **Auto-Refresh**: Balances are periodically refreshed through a backend cron-like process (see `lib/credits.ts`).
+
+### Data Security
+- Every Workspace is uniquely owned and private.
+- Better Auth ensures state-of-the-art session management.
+- External API keys (like Google or GitHub) are never stored in plain text—they are managed through environment variables on the server.
+
+---
+
+## 🤝 Community & Support
+
+- **Bug Reports**: Use the [Issue Tracker](https://github.com/vibe-org/vibe-coding-platform/issues).
+- **Proposals**: Start a discussion for new framework support (Astro, Svelte, etc).
+- **Discord**: Join the movement at [discord.gg/vibe](#).
+
+---
+
+**Crafted with obsession by the Vibe Core Team.**
