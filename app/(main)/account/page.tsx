@@ -8,6 +8,16 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { 
   User, 
   Lock, 
@@ -46,6 +56,11 @@ export default function AccountPage() {
   const [sessions, setSessions] = useState<any[]>([]);
   const [isSessionsLoading, setIsSessionsLoading] = useState(true);
   const [revokingId, setRevokingId] = useState<string | null>(null);
+
+  // Account Deletion State
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
   const fetchSessions = async () => {
     setIsSessionsLoading(true);
@@ -130,9 +145,9 @@ export default function AccountPage() {
   };
 
   const handleDeleteAccount = async () => {
-    const confirmed = window.confirm("Are you absolutely sure? This will permanently delete your account and all associated data.");
-    if (!confirmed) return;
-
+    if (deleteConfirmation !== "delete my account") return;
+    
+    setIsDeletingAccount(true);
     await authClient.deleteUser({
         callbackURL: "/sign-in"
     }, {
@@ -142,6 +157,7 @@ export default function AccountPage() {
       },
       onError: (ctx) => {
         toast.error(ctx.error.message || "Failed to delete account");
+        setIsDeletingAccount(false);
       }
     });
   };
@@ -326,28 +342,6 @@ export default function AccountPage() {
                   </div>
               </div>
             </div>
-
-            <div className="grid lg:grid-cols-3 gap-12 border-t border-border/5 pt-20">
-              <div className="lg:col-span-1">
-                <h3 className="text-xl font-bold text-destructive mb-2 tracking-tight uppercase tracking-widest">Danger Zone</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">Wipe all your data from Vibe permanently.</p>
-              </div>
-              <div className="lg:col-span-2 space-y-6">
-                <div className="p-4 bg-destructive/5 border border-destructive/10 rounded-2xl">
-                  <p className="text-sm text-destructive font-medium leading-relaxed">
-                    Once you delete your account, there is no going back. All projects, credits, and history will be permanently wiped from our servers.
-                  </p>
-                </div>
-                <Button 
-                  variant="ghost" 
-                  onClick={handleDeleteAccount}
-                  className="h-11 rounded-xl px-10 font-bold text-destructive hover:bg-destructive/10 border border-destructive/20"
-                >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Delete Account
-                </Button>
-              </div>
-            </div>
           </section>
 
           {/* Sessions Section */}
@@ -399,8 +393,81 @@ export default function AccountPage() {
               </div>
             </div>
           </section>
+
+          {/* Danger Zone */}
+          <section id="danger-zone" className="animate-in fade-in slide-in-from-bottom-4 duration-500 border-t border-border/10 pt-20">
+            <div className="grid lg:grid-cols-3 gap-12">
+              <div className="lg:col-span-1">
+                <h3 className="text-xl font-bold text-destructive mb-2 tracking-tight uppercase tracking-widest">Danger Zone</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">Wipe all your data from Vibe permanently.</p>
+              </div>
+              <div className="lg:col-span-2 space-y-6">
+                <div className="p-6 bg-destructive/5 border border-destructive/10 rounded-3xl">
+                  <p className="text-sm text-destructive font-medium leading-relaxed">
+                    Once you delete your account, there is no going back. All projects, credits, and history will be permanently wiped from our servers.
+                  </p>
+                </div>
+                <Button 
+                  variant="ghost" 
+                  onClick={() => setIsDeleteDialogOpen(true)}
+                  className="h-12 rounded-xl px-12 font-bold text-destructive hover:bg-destructive/10 border border-destructive/20 transition-all hover:scale-[1.02]"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete Account
+                </Button>
+              </div>
+            </div>
+          </section>
         </div>
       </main>
+
+      {/* Account Deletion Confirmation Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent className="rounded-3xl border-border bg-background/95 backdrop-blur-xl max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-2xl font-bold tracking-tight text-foreground">
+              Delete Account?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground pt-2">
+              This action is <span className="text-destructive font-bold">permanent</span> and cannot be undone. All your workspaces and data will be lost.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-6 space-y-4">
+            <div className="space-y-2">
+              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground/80 ml-1">
+                Type <span className="text-foreground select-all">"delete my account"</span> to confirm
+              </label>
+              <Input
+                value={deleteConfirmation}
+                onChange={(e) => setDeleteConfirmation(e.target.value)}
+                placeholder="delete my account"
+                className="h-12 rounded-xl border-border bg-muted/20 focus:bg-background focus:ring-destructive/20 transition-all"
+                autoFocus
+              />
+            </div>
+          </div>
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel className="rounded-xl font-bold text-xs uppercase tracking-wider border-border/50 h-11">
+              Cancel
+            </AlertDialogCancel>
+            <Button
+              onClick={handleDeleteAccount}
+              disabled={deleteConfirmation !== "delete my account" || isDeletingAccount}
+              variant="destructive"
+              className="rounded-xl font-bold text-xs uppercase tracking-wider shadow-lg shadow-destructive/20 h-11 px-8"
+            >
+              {isDeletingAccount ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Confirm Delete"
+              )}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

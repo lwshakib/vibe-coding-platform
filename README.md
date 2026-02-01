@@ -7,7 +7,7 @@
 
 > **Vibe** is the ultimate AI-powered coding platform that enables you to build, preview, and deploy full-stack web applications directly in your browser. No setup required, just start coding!
 
-![Vibe Platform](https://via.placeholder.com/1200x600/667eea/ffffff?text=Vibe+Coding+Platform)
+![Vibe Platform](./public/vibe-editor-screenshot.png)
 
 ## ✨ Features
 
