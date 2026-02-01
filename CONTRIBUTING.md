@@ -1,6 +1,6 @@
-# 🛠️ Contributing to Vibe - Technical Guide
+# 🛠️ Contributing to Vibe - Detailed Technical Guide
 
-Thank you for your interest in contributing! This document provides a deep technical dive into how Vibe is structured and how you can add new features effectively.
+First off, thank you for considering contributing to Vibe! Community contributions are the lifeblood of this project. This document provides a deep technical dive into how Vibe is structured and how you can add new features effectively.
 
 ---
 
@@ -12,107 +12,96 @@ Thank you for your interest in contributing! This document provides a deep techn
 5. [State Management (Zustand)](#-state-management-zustand)
 6. [Coding Standards Deep Dive](#-coding-standards-deep-dive)
 7. [Testing Procedures](#-testing-procedures)
+8. [Pull Request & Review Process](#-pull-request--review-process)
 
 ---
 
 ## 💡 Core Philosophy
 Vibe is built on the principle of **"Zero Latency Development."** 
-- **Everything must be reactive**: UI changes must reflect state immediately.
-- **Client-First Runtime**: The backend should only be used for persistence and heavy LLM processing.
-- **Strict Typing**: No `any` types. Everything must be interface-defined.
+- **Reactive UI**: Every change in state must be reflected in the UI immediately. Use Framer Motion for transitions to make the app feel "alive."
+- **Client-First Runtime**: We leverage the user's CPU for the Node.js runtime (WebContainer). The backend is strictly for persistence, heavy AI inference, and secure OAuth.
+- **Explicit Typings**: Avoid `any` at all costs. Use Zod for runtime validation where possible.
 
 ---
 
 ## 📂 Local Development Workflow
 
-### Database Changes
-We use Prisma. If you modify `prisma/schema.prisma`:
-1. Run `bun db:migrate` to update your local DB.
-2. Run `bun db:generate` to regenerate the TypeScript client.
-3. If necessary, update the `context/` store to accommodate the new model fields.
+### 1. Database Management (Prisma)
+Vibe uses PostgreSQL. If you modify `prisma/schema.prisma`:
+- **Migration**: Run `bun db:migrate` to generate a new SQL migration and apply it to your local database.
+- **Client Generation**: Run `bun db:generate` to update the TypeScript types in `@/generated/prisma`.
+- **Inspection**: Use `bun db:studio` to open a GUI for your local data.
 
-### Env Management
-Ensure your `.env` contains a valid `GOOGLE_GENERATIVE_AI_API_KEY`. Without this, the chat feature and component generation will fail silently or throw a 500 error.
+### 2. Environment Variables
+Ensure your `.env` contains a valid `GOOGLE_GENERATIVE_AI_API_KEY`. Without this, the AI features will be disabled. We recommend using a dedicated development key from [Google AI Studio](https://aistudio.google.com).
 
 ---
 
 ## 🏗️ The Feature Architecture
 
-All complex logic is isolated in the `/features` folder.
-- **Editor**: Uses CodeMirror 6. If you want to add a language support, modify `features/editor/extensions.ts`.
-- **Chat**: State is managed in `context/index.ts`. The AI logic lives in `app/api/chat/route.ts`.
-- **WebContainer Manager**: Located in `lib/webcontainer.ts`. This class handles the boot sequence and file system mounts.
+All complex logic is isolated in the `/features` folder to keep the `/app` directory clean.
+- **Editor**: Built on **CodeMirror 6**. Language support is dynamically loaded. Extensions (themes, autocomplete) are managed in `features/editor/extensions.ts`.
+- **Chat**: Handles the LLM stream. It uses a custom parser (`lib/parseVibeArtifact.ts`) to extract file changes from AI responses. 
+- **WebContainer Manager**: A singleton located in `lib/webcontainer.ts`. It handles the lifecycle of the browser-based Node.js runtime, including booting, mounting files, and spawning shell processes.
 
 ---
 
 ## 🚀 Adding a New Workspace Starter Template
 
-If you want to add support for a new framework (e.g., Svelte, Astro):
+Support for a new framework requires synchronizing the registry and the file generator:
 
-1. **Update Registry**: Add a new entry to `lib/workspace-registry.ts` in the `WORKSPACE_REGISTRY` array.
-2. **Define Template Files**: Create a corresponding file in `lib/starters.ts` that returns the default `files` object (a recursive `Files` structure).
-3. **Configure Dependencies**: Ensure the `package.json` in your template includes the necessary dev scripts (e.g., `"dev": "astro dev"`).
-4. **Test Boot**: Create a new workspace using the template and verify the preview starts correctly.
+1. **Registry**: Add an entry to `lib/workspace-registry.ts` inside the `WORKSPACE_REGISTRY` constant. Define the `AppType` (ensure it matches the Prisma enum).
+2. **Template**: Define the file structure in `lib/starters.ts`. This must return a `Files` object (a recursive structure where keys are filenames and values are `{ file: { contents: string } }`).
+3. **Boot Logic**: Ensure the `package.json` in your template has a `"dev"` script that starts a web server on port 3000, 3001, etc. Vibe will automatically detect these ports and show the preview.
 
 ---
 
 ## 🧠 State Management (Zustand)
 
-Vibe's state lives in `context/index.ts` within the `useWorkspaceStore` hook.
+Vibe's global state is managed via Zustand in `context/index.ts`.
 
-### Key Store Actions:
-- `setFiles`: Updates the virtual file system. Whenever this is called, a side effect should check if the WebContainer needs a `writeFile` call.
-- `updateFile`: Modifies a single file's content.
-- `messages`: An array of `Message` objects. This is persisted to the DB only when the workspace is "Saved" (either manually or via the auto-save debouncer).
+### Critical Store Actions:
+- `setFiles(files: Files)`: Updates the in-memory file system. This triggers a recursive write to the WebContainer FS.
+- `updateFile(path: string, content: string)`: Updates a specific path. This is tied to the editor's "Change" event.
+- `addMessage(msg: Message)`: Appends to the chat history and triggers a DB sync via a debounced background task.
 
 ---
 
 ## 🎨 Coding Standards Deep Dive
 
-### 1. Component Structure
-Always use functional components with explicit prop types:
-```tsx
-interface FeatureProps {
-  workspaceId: string;
-  onAction?: (data: any) => void;
-}
+### 1. Component Convention
+- Use **PascalCase** for component folders and files (e.g., `features/ChatWindow/Header.tsx`).
+- Export components as named functions: `export function Header() { ... }`.
+- Always define a `Props` interface even if empty.
 
-export function MyFeature({ workspaceId, onAction }: FeatureProps) {
-  // Logic here
-  return <div>...</div>;
-}
-```
-
-### 2. Styling
-We use **Tailwind CSS 4**. Prioritize:
-- **CSS Variables**: Use `--primary`, `--background`, etc., for consistency.
-- **Responsive Classes**: Always test your component at mobile, tablet, and desktop breakpoints.
-- **Accessibility**: Use `aria-` attributes. All buttons must have descriptive labels.
+### 2. Styling (Tailwind 4)
+- We use the latest **Tailwind CSS 4** engine.
+- Favor CSS variables over hardcoded hex codes.
+- Use `cn()` utility from `lib/utils.ts` for conditional class merging.
 
 ---
 
 ## 🧪 Testing Procedures
 
-### Unit Testing
-We use **Vitest**. Place your tests in a `__tests__` folder next to the logic you are testing.
-```bash
-bun test
-```
+### Unit Testing (Vitest)
+Run `bun test` to execute the suite. New logic in `lib/` or `features/` should always include a corresponding `[name].test.ts` file.
 
-### Integration Testing
-Currently, we perform manual integration testing by:
-1. Booting the app.
-2. Creating a workspace.
-3. Verifying the WebContainer terminal responds to `ls`.
-4. Triggering an AI edit and ensuring the preview updates.
+### Manual QA Checklist
+Before submitting a PR, verify:
+1. Workspace boots correctly (terminal shows prompt).
+2. File edits in the editor are reflected in the terminal (`cat [file]`).
+3. AI chat can successfully generate a new file.
+4. UI is responsive at multiple viewport widths (Mobile/Desktop).
 
 ---
 
-## 🤝 Pull Request Checklist
-- [ ] My code follows the project's style guidelines.
-- [ ] I have performed a self-review of my own code.
-- [ ] I have commented my code, particularly in hard-to-understand areas.
-- [ ] I have updated the documentation accordingly.
-- [ ] My changes generate no new lint errors (`bun lint`).
+## 🏁 Pull Request & Review Process
 
-Thank you for contributing to Vibe! 🚀
+1. **Self-Review**: Read through your diff. Remove any `console.log` or commented-out code.
+2. **Commit Messages**: Use [Conventional Commits](https://www.conventionalcommits.org/) (e.g., `feat: add astro support`, `fix: terminal scroll issue`).
+3. **PR Description**: Detail *what* changed and *how* to test it. Attach screenshots for UI changes.
+4. **Review**: At least one maintainer must approve the PR. Address all comments promptly.
+
+---
+
+**Thank you for helping us build the future of coding! 🚀**
