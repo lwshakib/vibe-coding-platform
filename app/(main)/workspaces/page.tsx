@@ -180,6 +180,7 @@ export default function WorkspacesPage() {
       setCreateDialogOpen(false);
       setNewWorkspaceName("");
       setStep(0);
+      router.push(`/workspaces/${data.workspace.id}`);
     } catch (err) {
       console.error(err);
       setCreateError("Unable to create workspace.");
