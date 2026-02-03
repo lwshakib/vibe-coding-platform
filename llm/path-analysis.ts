@@ -1,5 +1,6 @@
 import { google } from "@ai-sdk/google";
 import { generateText } from "ai";
+import { GeminiModel } from "./model";
 
 export async function analyzeProjectPaths(files: Record<string, any>) {
   const fileList = Object.keys(files).join("\n");
@@ -24,7 +25,7 @@ export async function analyzeProjectPaths(files: Record<string, any>) {
 
   try {
     const { text } = await generateText({
-      model: google("gemini-1.5-pro"),
+      model: GeminiModel(),
       prompt: prompt,
     });
 
