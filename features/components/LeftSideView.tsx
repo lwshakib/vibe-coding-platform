@@ -6,7 +6,8 @@ import AiInput from "./AiInput";
 import UserMessage from "./UserMessage";
 import AssistantMessage from "./AssistantMessage";
 import { useChat } from "@ai-sdk/react";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, RefreshCw } from "lucide-react";
+import { APP_PROMPT_SUGGESTIONS } from "@/lib/prompt-suggestions";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
@@ -21,6 +22,7 @@ const LeftSideView: React.FC = () => {
   const { data: session } = authClient.useSession();
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameInput, setNameInput] = useState("");
+  const [suggestionsIndex, setSuggestionsIndex] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const { 
@@ -31,7 +33,8 @@ const LeftSideView: React.FC = () => {
     selectedContexts, 
     removeSelectedContext, 
     fetchCredits,
-    syncWithGithub
+    syncWithGithub,
+    setChatInput
   } = useWorkspaceStore();
 
   const { instance, state: wcState, startDevServer } = useWebContainerContext();
@@ -244,7 +247,7 @@ const LeftSideView: React.FC = () => {
         <div className="p-2 pr-4 min-h-full flex flex-col">
           {messages.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center animate-in fade-in zoom-in-95 duration-1000">
-              <div className="text-center max-w-md px-4">
+              <div className="text-center max-w-lg px-4">
                 <LogoIcon size={80} className="rotate-12 text-primary/30 mx-auto mb-12 drop-shadow-sm" />
                 <h1 className="mb-4 text-4xl md:text-5xl font-bold text-foreground tracking-tight">
                   What do you <span className="text-primary italic">want</span>{" "}
@@ -256,6 +259,35 @@ const LeftSideView: React.FC = () => {
                   <span className="text-foreground font-medium">mobile</span>{" "}
                   apps.
                 </p>
+
+                {/* Prompt Suggestions */}
+                {currentWorkspace?.app_type && APP_PROMPT_SUGGESTIONS[currentWorkspace.app_type] && (
+                  <div className="mt-10 space-y-3">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">
+                      <span className="uppercase tracking-wider font-semibold">Try a Suggestion</span>
+                      <button 
+                        onClick={() => setSuggestionsIndex(prev => (prev + 3) % APP_PROMPT_SUGGESTIONS[currentWorkspace.app_type].length)}
+                        className="flex items-center gap-1.5 hover:text-foreground transition-colors"
+                      >
+                        <RefreshCw className="w-3 h-3" />
+                        <span>More</span>
+                      </button>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      {APP_PROMPT_SUGGESTIONS[currentWorkspace.app_type]
+                        .slice(suggestionsIndex, suggestionsIndex + 3)
+                        .map((suggestion, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => setChatInput(suggestion)}
+                            className="text-left px-4 py-3 rounded-xl border border-border bg-muted/30 hover:bg-muted/60 hover:border-primary/30 text-sm text-muted-foreground hover:text-foreground transition-all group"
+                          >
+                            <span className="line-clamp-2">{suggestion}</span>
+                          </button>
+                        ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ) : (
