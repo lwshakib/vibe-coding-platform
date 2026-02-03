@@ -9,8 +9,6 @@ import {
   Files,
   FilePlus,
   FolderPlus,
-  RefreshCw,
-  ListCollapse,
   Scissors,
   Copy,
   FileText,
@@ -676,12 +674,6 @@ export default function FileExplorer() {
                     }}
                   >
                     <FolderPlus className="w-4 h-4" />
-                  </button>
-                  <button className="p-0.5 hover:bg-accent rounded text-muted-foreground hover:text-foreground transition-colors">
-                    <RefreshCw className="w-3.5 h-3.5" />
-                  </button>
-                  <button className="p-0.5 hover:bg-accent rounded text-muted-foreground hover:text-foreground transition-colors">
-                    <ListCollapse className="w-4 h-4" />
                   </button>
                 </div>
               </div>
