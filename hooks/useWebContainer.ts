@@ -366,7 +366,7 @@ export function useWebContainer(
       if (isSyncingRef.current) return;
       isSyncingRef.current = true;
       try {
-        let finalFiles = { ...projectFiles };
+        const finalFiles = { ...projectFiles };
         let dependenciesChanged = false;
         
         if (finalFiles["package.json"]) {
