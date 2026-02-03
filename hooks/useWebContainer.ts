@@ -29,11 +29,17 @@ export function useWebContainer(
 
   const mountedFilesRef = useRef<Record<string, string>>({});
   const isStartedRef = useRef(false);
+  const isStartingRef = useRef(false);
   const isInstallingRef = useRef(false);
   const isBootingRef = useRef(false);
   const isMountingRef = useRef(false);
   const devProcessRef = useRef<WebContainerProcess | null>(null);
   const installProcessRef = useRef<WebContainerProcess | null>(null);
+  
+  // Auto-healing state
+  const isExplicitStopRef = useRef(false);
+  const lastRestartTimeRef = useRef(0);
+  const restartCountRef = useRef(0);
 
   const logBufferRef = useRef<string[]>([]);
 
@@ -86,13 +92,29 @@ export function useWebContainer(
       setPort(port);
       setState("ready");
       isStartedRef.current = true;
-      writeToTerminal(`\x1b[32m\r\n[Vibe] Server ready at ${url}\x1b[0m\r\n`);
+      isStartingRef.current = false;
+      writeToTerminal(`\x1b[32m\r\n[Vibe] Preview server active at ${url}\x1b[0m\r\n`);
+      writeToTerminal(`\x1b[90m[Vibe] Mapped port: ${port}\x1b[0m\r\n`);
     });
 
     return () => {
       unsubscribe();
     };
   }, [instance, writeToTerminal]);
+
+  // Allow manual 'force ready' from UI if server-ready event is missed
+  useEffect(() => {
+    const forceReady = () => {
+      if (state !== "ready" && instance) {
+        writeToTerminal("\x1b[33m[Vibe] Force-transitioning to ready state.\x1b[0m\r\n");
+        setState("ready");
+        isStartedRef.current = true;
+        isStartingRef.current = false;
+      }
+    };
+    window.addEventListener("vibe-force-ready", forceReady);
+    return () => window.removeEventListener("vibe-force-ready", forceReady);
+  }, [state, instance, writeToTerminal]);
 
   const transformToWebContainerTree = (
     files: Record<string, { content: string }>
@@ -116,45 +138,154 @@ export function useWebContainer(
     return tree;
   };
 
-  const startDevServer = useCallback(async (wc: WebContainer) => {
-    setState((prev) => (prev === "ready" ? "ready" : "starting"));
-    if (devProcessRef.current) {
-      devProcessRef.current.kill();
-      try {
-        await Promise.race([
-          devProcessRef.current.exit,
-          new Promise(resolve => setTimeout(resolve, 2000))
-        ]);
-      } catch (e) {}
-      devProcessRef.current = null;
+  const startDevServer = useCallback(async (wc: WebContainer, skipClear: boolean = false) => {
+    if (isStartingRef.current && !devProcessRef.current) {
+      writeToTerminal("\x1b[33m[Vibe] Startup already in progress. Please wait...\x1b[0m\r\n");
+      return;
     }
     
-    await new Promise(resolve => setTimeout(resolve, 100));
+    isStartingRef.current = true;
+    isExplicitStopRef.current = false; // Reset stop flag on start
+    setState("starting");
+    writeToTerminal("\r\n\x1b[35m[Vibe] Initializing fresh server boot sequence...\x1b[0m\r\n");
+    
+    // Cleanup previous process if any
+    if (devProcessRef.current) {
+      writeToTerminal("\x1b[33m[Vibe] Killing existing dev server process...\x1b[0m\r\n");
+      const proc = devProcessRef.current;
+      proc.kill();
+      try {
+        await Promise.race([
+          proc.exit,
+          new Promise(resolve => setTimeout(resolve, 2500))
+        ]);
+      } catch (e) {}
+      
+      devProcessRef.current = null;
+      isStartedRef.current = false;
+      setUrl(null);
+      setPort(null);
+      writeToTerminal("\x1b[32m[Vibe] Previous process terminated and resources released.\x1b[0m\r\n");
+    }
+    
+    if (!skipClear) {
+      writeToTerminal("\x1b[2J\x1b[H"); 
+    }
+    
+    writeToTerminal("\x1b[36m[Vibe] Preparing to spawn new application instance...\x1b[0m\r\n");
 
-    const devProcess = await wc.spawn("npm", ["run", "dev"], {
-      cwd: "/",
-      env: { PORT: "3000" },
-    });
+    await new Promise(resolve => setTimeout(resolve, 1200));
 
-    devProcess.output.pipeTo(
-      new WritableStream({
-        write: (data) => {
-          writeToTerminal(data);
-          if (data.includes("exp://")) {
-            const match = data.match(/exp:\/\/[^\s\n\x1b]+/);
-            if (match) {
-              setExpoQRData(match[0]);
-              setShowExpoQR(true);
-            }
-          }
+    let command = "npm";
+    let args = ["run", "dev"];
+    
+    if (mountedFilesRef.current["package.json"]) {
+       try {
+         const pkg = JSON.parse(mountedFilesRef.current["package.json"]);
+         if (!pkg.scripts?.dev) {
+           if (pkg.scripts?.start) {
+             args = ["run", "start"];
+             writeToTerminal("\x1b[90m[Vibe] No 'dev' script found, falling back to 'npm start'\x1b[0m\r\n");
+           } else {
+             command = "node";
+             args = [pkg.main || "index.js"];
+             writeToTerminal(`\x1b[90m[Vibe] No scripts found, falling back to 'node ${args[0]}'\x1b[0m\r\n`);
+           }
+         }
+       } catch (e) {}
+    } else {
+      command = "node";
+      args = ["index.js"];
+      writeToTerminal("\x1b[90m[Vibe] No package.json, attempting 'node index.js'\x1b[0m\r\n");
+    }
+
+    try {
+      writeToTerminal(`\x1b[33m[Vibe] Executing: ${command} ${args.join(" ")}\x1b[0m\r\n`);
+      const devProcess = await wc.spawn(command, args, {
+        cwd: "/",
+        env: { 
+          PORT: "3000",
+          HOST: "0.0.0.0",
+          NODE_ENV: "development"
         },
-      })
-    );
-    devProcessRef.current = devProcess;
-  }, [setExpoQRData, setShowExpoQR, writeToTerminal]);
+      });
+
+      devProcessRef.current = devProcess;
+
+      devProcess.output.pipeTo(
+        new WritableStream({
+          write: (data) => {
+            writeToTerminal(data);
+            if (data.includes("exp://")) {
+              const match = data.match(/exp:\/\/[^\s\n\x1b]+/);
+              if (match) {
+                setExpoQRData(match[0]);
+                setShowExpoQR(true);
+              }
+            }
+          },
+        })
+      );
+      
+      writeToTerminal("\x1b[90m[Vibe] Process successfully spawned. Listening for server-ready event...\x1b[0m\r\n");
+      
+      const watchdog = setTimeout(() => {
+        if (isStartingRef.current && devProcessRef.current === devProcess && state === "starting") {
+          writeToTerminal("\x1b[33m\r\n[Vibe] Warning: Server is taking a long time to start. Check if it's listening on the correct port.\x1b[0m\r\n");
+          isStartingRef.current = false;
+        }
+      }, 30000);
+
+      devProcess.exit.then((code) => {
+        clearTimeout(watchdog);
+        if (devProcessRef.current === devProcess) {
+          if (code !== 0 && code !== null) {
+            writeToTerminal(`\x1b[31m\r\n[Vibe] Process exited with code: ${code}\x1b[0m\r\n`);
+          } else {
+            writeToTerminal("\x1b[33m\r\n[Vibe] Process terminated.\x1b[0m\r\n");
+          }
+          
+          isStartedRef.current = false;
+          isStartingRef.current = false;
+          devProcessRef.current = null;
+          setUrl(null);
+          setPort(null);
+          setState("stopped");
+
+          const now = Date.now();
+          const isRecentCrash = now - lastRestartTimeRef.current < 10000;
+          if (isRecentCrash) {
+            restartCountRef.current += 1;
+          } else {
+            restartCountRef.current = 0;
+          }
+          lastRestartTimeRef.current = now;
+
+          if (!isExplicitStopRef.current && restartCountRef.current < 5) {
+             writeToTerminal(`\x1b[35m\r\n[Vibe] Server stopped unexpectedly. Attempting automatic recovery (Attempt ${restartCountRef.current + 1}/5)...\x1b[0m\r\n`);
+             setTimeout(() => {
+                if (!isExplicitStopRef.current) {
+                   startDevServer(wc, true);
+                }
+             }, 2000);
+          } else if (restartCountRef.current >= 5) {
+             writeToTerminal("\x1b[31m\r\n[Vibe] Maximum auto-restart attempts reached. Please check your code for persistent errors.\x1b[0m\r\n");
+          }
+        }
+      });
+    } catch (err: any) {
+      writeToTerminal(`\x1b[31m\r\n[Vibe] Fatal error during spawn: ${err.message}\x1b[0m\r\n`);
+      isStartedRef.current = false;
+      isStartingRef.current = false;
+      devProcessRef.current = null;
+      setState("stopped");
+    }
+  }, [setExpoQRData, setShowExpoQR, writeToTerminal, state]);
 
   const stopDevServer = useCallback(async () => {
     if (devProcessRef.current) {
+      writeToTerminal("\x1b[33m\r\n[Vibe] Stopping dev server...\x1b[0m\r\n");
+      isExplicitStopRef.current = true;
       devProcessRef.current.kill();
       try {
         await Promise.race([
@@ -163,11 +294,13 @@ export function useWebContainer(
         ]);
       } catch (e) {}
       devProcessRef.current = null;
+      isStartedRef.current = false;
+      isStartingRef.current = false;
       setState("stopped");
       setUrl(null);
       setPort(null);
     }
-  }, []);
+  }, [writeToTerminal]);
 
   const runInstall = useCallback(async (wc: WebContainer) => {
     if (isInstallingRef.current) return false;
@@ -224,80 +357,85 @@ export function useWebContainer(
     } finally {
       isBootingRef.current = false;
     }
-  }, [instance, writeToTerminal]);
+  }, [instance, writeToTerminal, workspaceId]);
+
+  const isSyncingRef = useRef(false);
 
   const mountAndRun = useCallback(
     async (wc: WebContainer, projectFiles: Record<string, { content: string }>) => {
+      if (isSyncingRef.current) return;
+      isSyncingRef.current = true;
       try {
         let finalFiles = { ...projectFiles };
         let dependenciesChanged = false;
         
-        // Detect if any crucial configuration files changed
         if (finalFiles["package.json"]) {
+          const pkgContent = finalFiles["package.json"].content;
+          let pkg: any;
           try {
-            const pkgContent = finalFiles["package.json"].content;
-            const pkg = JSON.parse(pkgContent);
-            let modified = false;
-            
-            // Remove incompatible --turbo flag that often breaks WebContainer dev servers
-            if (pkg.scripts) {
-              Object.keys(pkg.scripts).forEach((key) => {
-                if (pkg.scripts[key] && pkg.scripts[key].includes("--turbo")) {
-                  pkg.scripts[key] = pkg.scripts[key].replace(/--turbo/g, "").trim();
-                  modified = true;
-                }
-              });
+            pkg = JSON.parse(pkgContent);
+          } catch (parseError: any) {
+            if (!isStreaming) {
+              writeToTerminal(`\x1b[31m[Vibe] package.json parse error: ${parseError.message}\x1b[0m\r\n`);
+              isSyncingRef.current = false;
+              setState("error");
+              setError(`Invalid package.json: ${parseError.message}`);
+              return;
             }
-            
-            if (modified) {
-              finalFiles["package.json"] = { content: JSON.stringify(pkg, null, 2) };
-              writeToTerminal("\x1b[33m[Vibe] Optimized package.json for WebContainer environment.\x1b[0m\r\n");
-            }
+          }
+          
+          let modified = false;
+          if (pkg?.scripts) {
+            Object.keys(pkg.scripts).forEach((key) => {
+              if (pkg.scripts[key] && pkg.scripts[key].includes("--turbo")) {
+                pkg.scripts[key] = pkg.scripts[key].replace(/--turbo/g, "").trim();
+                modified = true;
+              }
+            });
+          }
+          
+          if (modified) {
+            finalFiles["package.json"] = { content: JSON.stringify(pkg, null, 2) };
+            writeToTerminal("\x1b[33m[Vibe] Optimized package.json for WebContainer environment.\x1b[0m\r\n");
+          }
 
-            // Check for dependency changes against currently mounted files
+          if (pkg) {
             const oldPkgStr = mountedFilesRef.current["package.json"];
             if (oldPkgStr) {
-              const oldPkg = JSON.parse(oldPkgStr);
-              const depsChanged = JSON.stringify(oldPkg.dependencies) !== JSON.stringify(pkg.dependencies);
-              const devDepsChanged = JSON.stringify(oldPkg.devDependencies) !== JSON.stringify(pkg.devDependencies);
-              
-              if (depsChanged || devDepsChanged) {
-                dependenciesChanged = true;
-                writeToTerminal("\r\n\x1b[35m[Vibe] Dependencies changed, scheduled installation...\x1b[0m\r\n");
-              }
+              try {
+                const oldPkg = JSON.parse(oldPkgStr);
+                const depsChanged = JSON.stringify(oldPkg.dependencies) !== JSON.stringify(pkg.dependencies);
+                const devDepsChanged = JSON.stringify(oldPkg.devDependencies) !== JSON.stringify(pkg.devDependencies);
+                if (depsChanged || devDepsChanged) {
+                  dependenciesChanged = true;
+                  writeToTerminal("\r\n\x1b[35m[Vibe] Dependencies changed, scheduled installation...\x1b[0m\r\n");
+                }
+              } catch (e) {}
             } else if (pkg.dependencies || pkg.devDependencies) {
-              // Newly added package.json with dependencies
               dependenciesChanged = true;
               writeToTerminal("\r\n\x1b[35m[Vibe] New package.json detected, scheduled installation...\x1b[0m\r\n");
             }
-          } catch (e) {
-            console.error("Failed to parse package.json for dependency check", e);
           }
         }
 
-        // Full mount or incremental update based on state
         if (Object.keys(mountedFilesRef.current).length === 0) {
           if (isMountingRef.current) return;
           isMountingRef.current = true;
           setState("mounting");
-          
           try {
             const ls = await wc.fs.readdir("/").catch(() => []);
             for (const item of ls) {
               await wc.fs.rm(`/${item}`, { recursive: true }).catch(() => {});
             }
           } catch (e) {}
-
           const tree = transformToWebContainerTree(finalFiles);
           await wc.mount(tree);
-          
           Object.entries(finalFiles).forEach(([path, { content }]) => {
             mountedFilesRef.current[path] = content;
           });
           isMountingRef.current = false;
           writeToTerminal("\x1b[32m[Vibe] Files mounted successfully.\x1b[0m\r\n");
         } else {
-          // Incremental updates for efficiency
           let updatedCount = 0;
           for (const [path, { content }] of Object.entries(finalFiles)) {
             if (mountedFilesRef.current[path] !== content) {
@@ -311,8 +449,6 @@ export function useWebContainer(
               updatedCount++;
             }
           }
-
-          // Handle deletions
           const currentMountedPaths = Object.keys(mountedFilesRef.current);
           for (const path of currentMountedPaths) {
             if (!finalFiles[path]) {
@@ -323,93 +459,75 @@ export function useWebContainer(
               } catch (e) {}
             }
           }
-          
           if (updatedCount > 0) {
             writeToTerminal(`\x1b[90m[Vibe] Synced ${updatedCount} files.\x1b[0m\r\n`);
           }
         }
 
-        // Run install if needed or if starting for the first time
-        const shouldInstall = dependenciesChanged || (!isStartedRef.current && finalFiles["package.json"]);
-        
+        const shouldInstall = !isStreaming && (dependenciesChanged || (!isStartedRef.current && !isStartingRef.current && finalFiles["package.json"]));
         if (shouldInstall) {
+          if (dependenciesChanged && devProcessRef.current) {
+            await stopDevServer();
+          }
           const success = await runInstall(wc);
           if (success) {
-            await startDevServer(wc);
+            await startDevServer(wc, true);
           }
-        } else if (!isStartedRef.current) {
-          // If no package.json but we need to start (might be just static files or custom server)
-          await startDevServer(wc);
-        } else if (dependenciesChanged) {
-          // If server is already running but deps changed, we already handled it in shouldInstall block above,
-          // but for clarity: if we only needed to restart server without install
-          await startDevServer(wc);
+        } else if (!isStartedRef.current && !isStartingRef.current && state !== "starting") {
+          await startDevServer(wc, true);
         }
-        // If it's a simple file change and server is already ready, we do nothing and let HMR handle it.
       } catch (err: any) {
         isInstallingRef.current = false;
         isMountingRef.current = false;
+        isStartingRef.current = false;
         setState("error");
         setError(err.message);
         writeToTerminal(`\x1b[31m[Vibe] WebContainer Error: ${err.message}\x1b[0m\r\n`);
+      } finally {
+        isSyncingRef.current = false;
       }
     },
-    [startDevServer, runInstall, writeToTerminal]
+    [startDevServer, stopDevServer, runInstall, writeToTerminal, isStreaming, state]
   );
 
   useEffect(() => {
     if (files && Object.keys(files).length > 0 && !instance && !isBootingRef.current) {
       boot();
     }
-    return () => {
-      if (devProcessRef.current) {
-        devProcessRef.current.kill();
-        devProcessRef.current = null;
-      }
-      if (installProcessRef.current) {
-        installProcessRef.current.kill();
-        installProcessRef.current = null;
-      }
-    };
   }, [files, instance, boot]);
 
+  const wasStreamingRef = useRef(isStreaming);
+
   useEffect(() => {
+    const wasStreaming = wasStreamingRef.current;
+    wasStreamingRef.current = isStreaming;
     if (!files || Object.keys(files).length === 0 || !instance) return;
+
     const hasChanges = Object.entries(files).some(([path, { content }]) => mountedFilesRef.current[path] !== content) ||
                        Object.keys(mountedFilesRef.current).some(path => !files[path]);
-    
-    // We allow updates even during streaming to ensure new files/routes are created immediately.
-    // mountAndRun handles incremental updates efficiently to avoid unnecessary full reloads.
-    if (hasChanges || !isStartedRef.current) {
+    const shouldTrigger = !isStreaming && (hasChanges || !isStartedRef.current || wasStreaming);
+
+    if (shouldTrigger) {
       if (isMountingRef.current || isInstallingRef.current) return;
       mountAndRun(instance, files);
     }
   }, [files, instance, mountAndRun, isStreaming]);
 
-  // WATCHER: Real-time file sync from WebContainer to UI
   useEffect(() => {
-    // Keep watcher active as long as instance is available
     if (!instance || isMountingRef.current) return;
-    
     let mounted = true;
     let watchHandle: any;
-    
-    // Batch file updates to prevent UI lag during bulk operations (like create-next-app)
     let pendingUpdates: Record<string, { content: string | null }> = {};
     let syncTimeout: any;
 
     const flushUpdates = async () => {
       if (!mounted || Object.keys(pendingUpdates).length === 0) return;
-      
       const updates = { ...pendingUpdates };
       pendingUpdates = {};
-      
       const currentWorkspace = useWorkspaceStore.getState().currentWorkspace;
       if (!currentWorkspace) return;
-      
       const newFiles = { ...currentWorkspace.files };
       let changed = false;
-
       for (const [path, data] of Object.entries(updates)) {
         if (data.content === null) {
           if (newFiles[path]) {
@@ -425,7 +543,6 @@ export function useWebContainer(
            }
         }
       }
-
       if (changed) {
         await useWorkspaceStore.getState().updateFiles(newFiles);
       }
@@ -435,39 +552,28 @@ export function useWebContainer(
       try {
         watchHandle = await instance.fs.watch("/", { recursive: true }, async (type, eventFilename) => {
           if (!mounted || isMountingRef.current) return;
-          
           const filename = typeof eventFilename === "string" ? eventFilename : new TextDecoder().decode(eventFilename);
           const cleanPath = filename.startsWith("/") ? filename.slice(1) : filename;
-          
           if (!cleanPath || cleanPath.includes("node_modules") || cleanPath.includes(".next") || 
               cleanPath.includes(".git") || cleanPath.includes("dist") || cleanPath.includes("build") || 
               (cleanPath.split("/").some(p => p.startsWith(".")) && !cleanPath.endsWith(".keep"))) return;
-
           try {
             const fs = instance.fs as any;
             const isDir = await fs.readdir(`/${cleanPath}`).then(() => true).catch(() => false);
-            
             if (isDir) {
-               // Directory creation: Ensure we have a .keep file to track it in our JSON-based DB
                const ls = await fs.readdir(`/${cleanPath}`);
-               if (ls.length === 0) {
-                 await fs.writeFile(`/${cleanPath}/.keep`, "");
-               }
+               if (ls.length === 0) { await fs.writeFile(`/${cleanPath}/.keep`, ""); }
                return;
             }
-
             const content = await fs.readFile(`/${cleanPath}`, "utf-8").catch(() => null);
             pendingUpdates[cleanPath] = { content };
-            
             clearTimeout(syncTimeout);
             syncTimeout = setTimeout(flushUpdates, 300);
           } catch (e) {}
         });
       } catch (err) {}
     };
-
     startWatching();
-
     return () => {
       mounted = false;
       clearTimeout(syncTimeout);
