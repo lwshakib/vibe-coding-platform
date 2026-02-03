@@ -59,7 +59,7 @@ export default function WorkspacePage() {
   }
 
   return (
-    <WebContainerProvider>
+    <WebContainerProvider key={workspaceId}>
       <div className="w-full h-screen relative flex text-foreground overflow-hidden">
         {/* Left Side: Chat & File Tree */}
         <div className="w-full md:w-112.5 shrink-0">

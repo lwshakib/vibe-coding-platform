@@ -25,7 +25,7 @@ interface WebContainerContextType {
   setUrl: (url: string | null) => void;
   startDevServer: (wc: WebContainer) => Promise<void>;
   stopDevServer: () => Promise<void>;
-  runInstall: (wc: WebContainer) => Promise<void>;
+  runInstall: (wc: WebContainer) => Promise<boolean>;
   stopInstall: () => Promise<void>;
 }
 

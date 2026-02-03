@@ -254,13 +254,13 @@ const LeftSideView: React.FC = () => {
               {messages.map((m, idx) =>
                 m.role === "user" ? (
                   <UserMessage
-                    key={m.id || idx}
+                    key={`${m.id}-${idx}`}
                     content={getMessageText(m)}
                     user={session?.user}
                   />
                 ) : (
                   <AssistantMessage
-                    key={m.id || idx}
+                    key={`${m.id}-${idx}`}
                     content={getMessageText(m)}
                     isStreaming={idx === messages.length - 1}
                   />

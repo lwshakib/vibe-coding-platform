@@ -29,7 +29,7 @@ import { cn } from "@/lib/utils";
 
 export default function TerminalUI() {
   const [tabs, setTabs] = useState<{ id: string; name: string }[]>([
-    { id: "1", name: "Vibe" },
+    { id: "1", name: "Terminal" },
   ]);
   const [activeTabId, setActiveTabId] = useState("1");
   
@@ -332,8 +332,8 @@ export default function TerminalUI() {
   const addTab = () => {
     if (tabs.length >= 3) return;
     const newId = String(Date.now());
-    // All additional terminals should be named "Bash"
-    setTabs([...tabs, { id: newId, name: "Bash" }]);
+    // All additional terminals should be named "Terminal"
+    setTabs([...tabs, { id: newId, name: "Terminal" }]);
     setActiveTabId(newId);
   };
 
@@ -437,10 +437,17 @@ export default function TerminalUI() {
                 {!isInstalling ? (
                   <HeaderButton 
                     icon={Download}
-                    onClick={() => runInstall(instance)}
+                    onClick={async () => {
+                      if (!instance) return;
+                      // Stop dev server first to avoid file lock issues
+                      if (isRunning) await stopDevServer();
+                      const success = await runInstall(instance);
+                      // Auto-restart server if installation was successful
+                      if (success) await startDevServer(instance);
+                    }}
                     tooltip="Install Dependencies"
                     className="text-purple-500 hover:text-purple-600 hover:bg-purple-500/10"
-                    disabled={isTransitioning || isRunning}
+                    disabled={isTransitioning || isInstalling}
                   />
                 ) : (
                   <HeaderButton 

@@ -299,7 +299,13 @@ export default function WorkspacesPage() {
       const data = await res.json();
       
       if (cursor) {
-        setWorkspaces((prev) => [...prev, ...(data.workspaces ?? [])]);
+        setWorkspaces((prev) => {
+          const newWorkspaces = data.workspaces ?? [];
+          // Filter out any workspaces that might already be in the list
+          const existingIds = new Set(prev.map(w => w.id));
+          const filteredNew = newWorkspaces.filter((w: Workspace) => !existingIds.has(w.id));
+          return [...prev, ...filteredNew];
+        });
       } else {
         setWorkspaces(data.workspaces ?? []);
       }
@@ -1013,11 +1019,11 @@ export default function WorkspacesPage() {
                     </TableHeader>
                     <TableBody>
                       {[...workspaces]
-                        .map((workspace: Workspace) => {
+                        .map((workspace: Workspace, idx: number) => {
                           const template = getTemplateByType(workspace.app_type);
                           return (
                             <TableRow 
-                              key={workspace.id} 
+                              key={`${workspace.id}-${idx}`} 
                               className="group cursor-pointer h-16 transition-colors hover:bg-muted/30 border-b border-border/10"
                               onClick={() => router.push(`/workspaces/${workspace.id}`)}
                             >

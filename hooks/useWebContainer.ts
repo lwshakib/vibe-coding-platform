@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from "react";
-import { getWebContainerInstance } from "@/lib/webcontainer";
+import { getWebContainerInstance, teardownWebContainer } from "@/lib/webcontainer";
 import type { WebContainer, FileSystemTree, WebContainerProcess } from "@webcontainer/api";
 import type { Terminal } from "xterm"; // Type-only import
 import { useWorkspaceStore } from "@/context";
@@ -34,7 +34,6 @@ export function useWebContainer(
   const isMountingRef = useRef(false);
   const devProcessRef = useRef<WebContainerProcess | null>(null);
   const installProcessRef = useRef<WebContainerProcess | null>(null);
-  const prevWorkspaceIdRef = useRef<string | undefined>(workspaceId);
 
   const logBufferRef = useRef<string[]>([]);
 
@@ -63,7 +62,8 @@ export function useWebContainer(
   }, [terminalRef]);
 
   useEffect(() => {
-    if (workspaceId && prevWorkspaceIdRef.current && workspaceId !== prevWorkspaceIdRef.current) {
+    // Cleanup processes and teardown on unmount
+    return () => {
       if (devProcessRef.current) {
         devProcessRef.current.kill();
         devProcessRef.current = null;
@@ -72,20 +72,27 @@ export function useWebContainer(
         installProcessRef.current.kill();
         installProcessRef.current = null;
       }
-      mountedFilesRef.current = {};
-      isStartedRef.current = false;
-      isInstallingRef.current = false;
-      isMountingRef.current = false;
-      setState("idle");
-      setUrl(null);
-      setPort(null);
-      if (terminalRef?.current) {
-        terminalRef.current.clear();
-        terminalRef.current.write("\x1b[33mWorkspace changed, resetting environment...\x1b[0m\r\n");
-      }
-    }
-    prevWorkspaceIdRef.current = workspaceId;
-  }, [workspaceId, terminalRef]);
+      setInstance(null);
+      teardownWebContainer();
+    };
+  }, []);
+
+  // Listen for server-ready events and update state
+  useEffect(() => {
+    if (!instance) return;
+
+    const unsubscribe = instance.on("server-ready", (port, url) => {
+      setUrl(url);
+      setPort(port);
+      setState("ready");
+      isStartedRef.current = true;
+      writeToTerminal(`\x1b[32m\r\n[Vibe] Server ready at ${url}\x1b[0m\r\n`);
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [instance, writeToTerminal]);
 
   const transformToWebContainerTree = (
     files: Record<string, { content: string }>
@@ -163,7 +170,7 @@ export function useWebContainer(
   }, []);
 
   const runInstall = useCallback(async (wc: WebContainer) => {
-    if (isInstallingRef.current) return;
+    if (isInstallingRef.current) return false;
     isInstallingRef.current = true;
     setState("installing");
     try {
@@ -172,10 +179,15 @@ export function useWebContainer(
       installProcess.output.pipeTo(new WritableStream({ write: (data) => writeToTerminal(data) }));
       const installExitCode = await installProcess.exit;
       if (installExitCode !== 0 && installProcessRef.current) {
-        writeToTerminal("\x1b[31mDependency installation failed.\x1b[0m\r\n");
+        writeToTerminal("\x1b[31m[Vibe] Dependency installation failed with exit code " + installExitCode + ".\x1b[0m\r\n");
         isStartedRef.current = false;
-        throw new Error("Failed to install dependencies");
+        return false;
       }
+      writeToTerminal("\x1b[32m[Vibe] Dependencies installed successfully.\x1b[0m\r\n");
+      return true;
+    } catch (e: any) {
+      writeToTerminal(`\x1b[31m[Vibe] Installation error: ${e.message}\x1b[0m\r\n`);
+      return false;
     } finally {
       installProcessRef.current = null;
       isInstallingRef.current = false;
@@ -196,17 +208,15 @@ export function useWebContainer(
     isBootingRef.current = true;
     try {
       setState("booting");
-      const wc = await getWebContainerInstance();
-      wc.on("server-ready", (port, url) => {
-        setUrl(url);
-        setPort(port);
-        setState("ready");
-        isStartedRef.current = true;
-        writeToTerminal(`\x1b[32mServer ready at ${url}\x1b[0m\r\n`);
-      });
+      const wc = await getWebContainerInstance(workspaceId);
       setInstance(wc);
       return wc;
     } catch (err: any) {
+      if (err.message?.includes("already booted")) {
+         const wc = await getWebContainerInstance();
+         setInstance(wc);
+         return wc;
+      }
       setState("error");
       setError(err.message);
       writeToTerminal(`\x1b[31mError booting: ${err.message}\x1b[0m\r\n`);
@@ -323,12 +333,19 @@ export function useWebContainer(
         const shouldInstall = dependenciesChanged || (!isStartedRef.current && finalFiles["package.json"]);
         
         if (shouldInstall) {
-          await runInstall(wc);
-          await startDevServer(wc);
+          const success = await runInstall(wc);
+          if (success) {
+            await startDevServer(wc);
+          }
         } else if (!isStartedRef.current) {
           // If no package.json but we need to start (might be just static files or custom server)
           await startDevServer(wc);
+        } else if (dependenciesChanged) {
+          // If server is already running but deps changed, we already handled it in shouldInstall block above,
+          // but for clarity: if we only needed to restart server without install
+          await startDevServer(wc);
         }
+        // If it's a simple file change and server is already ready, we do nothing and let HMR handle it.
       } catch (err: any) {
         isInstallingRef.current = false;
         isMountingRef.current = false;
@@ -364,15 +381,56 @@ export function useWebContainer(
     // We allow updates even during streaming to ensure new files/routes are created immediately.
     // mountAndRun handles incremental updates efficiently to avoid unnecessary full reloads.
     if (hasChanges || !isStartedRef.current) {
-      if (isBootingRef.current || isMountingRef.current || isInstallingRef.current) return;
+      if (isMountingRef.current || isInstallingRef.current) return;
       mountAndRun(instance, files);
     }
   }, [files, instance, mountAndRun, isStreaming]);
 
+  // WATCHER: Real-time file sync from WebContainer to UI
   useEffect(() => {
-    if (!instance || state !== "ready" || isMountingRef.current) return;
+    // Keep watcher active as long as instance is available
+    if (!instance || isMountingRef.current) return;
+    
     let mounted = true;
     let watchHandle: any;
+    
+    // Batch file updates to prevent UI lag during bulk operations (like create-next-app)
+    let pendingUpdates: Record<string, { content: string | null }> = {};
+    let syncTimeout: any;
+
+    const flushUpdates = async () => {
+      if (!mounted || Object.keys(pendingUpdates).length === 0) return;
+      
+      const updates = { ...pendingUpdates };
+      pendingUpdates = {};
+      
+      const currentWorkspace = useWorkspaceStore.getState().currentWorkspace;
+      if (!currentWorkspace) return;
+      
+      const newFiles = { ...currentWorkspace.files };
+      let changed = false;
+
+      for (const [path, data] of Object.entries(updates)) {
+        if (data.content === null) {
+          if (newFiles[path]) {
+            delete newFiles[path];
+            delete mountedFilesRef.current[path];
+            changed = true;
+          }
+        } else {
+           if (mountedFilesRef.current[path] !== data.content) {
+             mountedFilesRef.current[path] = data.content;
+             newFiles[path] = { content: data.content };
+             changed = true;
+           }
+        }
+      }
+
+      if (changed) {
+        await useWorkspaceStore.getState().updateFiles(newFiles);
+      }
+    };
+
     const startWatching = async () => {
       try {
         watchHandle = await instance.fs.watch("/", { recursive: true }, async (type, eventFilename) => {
@@ -388,38 +446,34 @@ export function useWebContainer(
           try {
             const fs = instance.fs as any;
             const isDir = await fs.readdir(`/${cleanPath}`).then(() => true).catch(() => false);
+            
             if (isDir) {
-              const currentFiles = useWorkspaceStore.getState().currentWorkspace?.files || {};
-              const isAlreadyPresent = Object.keys(currentFiles).some(p => p === `${cleanPath}/.keep` || p.startsWith(`${cleanPath}/`));
-              if (!isAlreadyPresent) await fs.writeFile(`/${cleanPath}/.keep`, "");
-              return;
+               // Directory creation: Ensure we have a .keep file to track it in our JSON-based DB
+               const ls = await fs.readdir(`/${cleanPath}`);
+               if (ls.length === 0) {
+                 await fs.writeFile(`/${cleanPath}/.keep`, "");
+               }
+               return;
             }
+
             const content = await fs.readFile(`/${cleanPath}`, "utf-8").catch(() => null);
-            if (content !== null) {
-              if (mountedFilesRef.current[cleanPath] !== content) {
-                mountedFilesRef.current[cleanPath] = content;
-                const currentFiles = { ...useWorkspaceStore.getState().currentWorkspace?.files };
-                currentFiles[cleanPath] = { content };
-                await useWorkspaceStore.getState().updateFiles({ ...currentFiles });
-              }
-            } else {
-              const currentFiles = { ...useWorkspaceStore.getState().currentWorkspace?.files };
-              if (currentFiles[cleanPath]) {
-                delete currentFiles[cleanPath];
-                delete mountedFilesRef.current[cleanPath];
-                await useWorkspaceStore.getState().updateFiles({ ...currentFiles });
-              }
-            }
+            pendingUpdates[cleanPath] = { content };
+            
+            clearTimeout(syncTimeout);
+            syncTimeout = setTimeout(flushUpdates, 300);
           } catch (e) {}
         });
       } catch (err) {}
     };
+
     startWatching();
+
     return () => {
       mounted = false;
+      clearTimeout(syncTimeout);
       if (watchHandle) watchHandle.close();
     };
-  }, [instance, state]);
+  }, [instance]);
 
   return { instance, state, url, setUrl, port, setPort, error, startDevServer, stopDevServer, runInstall, stopInstall };
 }
