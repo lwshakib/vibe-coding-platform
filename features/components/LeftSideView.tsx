@@ -14,6 +14,7 @@ import { parseVibeArtifact } from "@/lib/parseVibeArtifact";
 import { LogoIcon } from "@/components/logo";
 import { authClient } from "@/lib/auth-client";
 import { toast } from "sonner";
+import { useWebContainerContext } from "@/context/WebContainerContext";
 
 const LeftSideView: React.FC = () => {
   const router = useRouter();
@@ -33,6 +34,8 @@ const LeftSideView: React.FC = () => {
     syncWithGithub
   } = useWorkspaceStore();
 
+  const { instance, state: wcState, startDevServer } = useWebContainerContext();
+
   const sessionChanges = useRef<Record<string, { path: string, oldContent: string, newContent: string }>>({});
 
   const {
@@ -40,6 +43,7 @@ const LeftSideView: React.FC = () => {
     sendMessage,
     setMessages: setChatMessages,
     status,
+    stop,
   } = useChat({
     onFinish: () => {
       fetchCredits();
@@ -48,6 +52,11 @@ const LeftSideView: React.FC = () => {
       if (changes.length > 0) {
         syncWithGithub(changes);
         sessionChanges.current = {}; // Reset for next time
+      }
+
+      // Automatically restart dev server if it's not running after AI finishes
+      if (instance && (wcState === "stopped" || wcState === "idle")) {
+        startDevServer(instance);
       }
     },
     onError:()=>{
@@ -273,6 +282,7 @@ const LeftSideView: React.FC = () => {
 
       <div className="shrink-0 p-2 bg-linear-to-t from-background via-background to-transparent">
         <AiInput
+          onStop={stop}
           onSend={async (text, files) => {
             // Helper to convert file to base64
             const toBase64 = (file: File): Promise<string> =>
