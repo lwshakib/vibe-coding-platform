@@ -197,9 +197,9 @@ export const CustomSearchBar: React.FC<CustomSearchBarProps> = ({
       {/* Left Area: Port Indicator */}
       <div className="flex items-center shrink-0 h-full pl-3 pr-2 border-r border-border/40">
         <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
-          <PopoverTrigger asChild>
-            <Tooltip>
-              <TooltipTrigger asChild>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <PopoverTrigger asChild>
                 <button
                   disabled={disabled}
                   className="flex items-center gap-2.5 px-2 py-1.5 rounded-md transition-all hover:bg-muted/60 active:bg-muted group/port cursor-pointer disabled:cursor-not-allowed disabled:hover:bg-transparent"
@@ -212,12 +212,12 @@ export const CustomSearchBar: React.FC<CustomSearchBarProps> = ({
                     {port}
                   </span>
                 </button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">
-                <p>Change Port</p>
-              </TooltipContent>
-            </Tooltip>
-          </PopoverTrigger>
+              </PopoverTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p>Change Port</p>
+            </TooltipContent>
+          </Tooltip>
           <PopoverContent className="w-64 p-4 shadow-2xl rounded-2xl border-border bg-popover/95 backdrop-blur-xl" align="start" sideOffset={12}>
             <form onSubmit={handlePortSubmit} className="space-y-4">
               <div className="space-y-1.5">
