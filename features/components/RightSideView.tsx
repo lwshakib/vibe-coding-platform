@@ -20,7 +20,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useWorkspaceStore } from "@/context";
-import { Download, ExternalLink, Github, Lock, Plus, RefreshCw, Sparkles } from "lucide-react";
+import { Download, ExternalLink, Github, Lock, Plus, RefreshCw, Sparkles, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { Monitor, Smartphone, Tablet } from "lucide-react";
 import { uniqueNamesGenerator, adjectives, animals } from "unique-names-generator";
 import { toast } from "sonner";
@@ -46,6 +46,8 @@ const RightSideView: React.FC = () => {
     setPendingPreviewRoute,
     isSyncing,
     syncWithGithub,
+    isSidebarOpen,
+    setIsSidebarOpen
   } = useWorkspaceStore();
   const { url: previewUrl, port, setPort, instance, startDevServer, stopDevServer } = useWebContainerContext();
 
@@ -280,6 +282,15 @@ const RightSideView: React.FC = () => {
       <div className="w-full h-full rounded-xl flex flex-col overflow-hidden">
         <header className="sticky top-0 z-20 h-14 flex items-center justify-between shrink-0 gap-4 px-4 bg-background/50 backdrop-blur-md border-b border-border/5 transition-all">
           <div className="flex items-center gap-4 flex-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-foreground shrink-0"
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              title={isSidebarOpen ? "Collapse Sidebar" : "Expand Sidebar"}
+            >
+              {isSidebarOpen ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeftOpen className="w-4 h-4" />}
+            </Button>
             <CustomTabs activeTab={activeTab} onTabChange={setActiveTab} />
 
             <AnimatePresence>

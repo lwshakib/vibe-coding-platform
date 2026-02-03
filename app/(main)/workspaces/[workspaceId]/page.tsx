@@ -13,7 +13,7 @@ export default function WorkspacePage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const workspaceId = params.workspaceId as string;
-  const { currentWorkspace, setCurrentWorkspace, setMessages } =
+  const { currentWorkspace, setCurrentWorkspace, setMessages, isSidebarOpen } =
     useWorkspaceStore();
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -62,14 +62,18 @@ export default function WorkspacePage() {
     <WebContainerProvider key={workspaceId}>
       <div className="w-full h-screen relative flex text-foreground overflow-hidden">
         {/* Left Side: Chat & File Tree */}
-        <div className="w-full md:w-112.5 shrink-0">
+        <div 
+          className={`shrink-0 transition-all duration-300 ease-in-out ${
+            isSidebarOpen ? "w-full md:w-112.5 translate-x-0" : "w-0 -translate-x-full overflow-hidden"
+          }`}
+        >
           <div className="h-full w-full overflow-hidden">
             <LeftSideView />
           </div>
         </div>
 
         {/* Right Side: Preview/Editor */}
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 transition-all duration-300">
           <RightSideView />
         </div>
       </div>

@@ -88,6 +88,10 @@ interface WorkspaceStore {
   setIsSyncing: (status: boolean) => void;
   credits: number | null;
   fetchCredits: () => Promise<void>;
+  
+  // UI State
+  isSidebarOpen: boolean;
+  setIsSidebarOpen: (isOpen: boolean) => void;
 }
 
 export const useWorkspaceStore = create<WorkspaceStore>((set) => ({
@@ -99,6 +103,9 @@ export const useWorkspaceStore = create<WorkspaceStore>((set) => ({
           ? workspaces(state.workspaces)
           : workspaces,
     })),
+  
+  isSidebarOpen: true,
+  setIsSidebarOpen: (isOpen) => set({ isSidebarOpen: isOpen }),
 
   isSyncing: false,
   setIsSyncing: (status) => set({ isSyncing: status }),
