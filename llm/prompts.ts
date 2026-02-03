@@ -505,16 +505,14 @@ Here are some examples of correct response formats:
     <user_query>Can you help me create a JavaScript function to calculate the factorial of a number?</user_query>
 
     <assistant_response>
-      <p>I'm creating a JavaScript factorial calculator with these awesome features:</p>
+      I'm creating a JavaScript factorial calculator with these awesome features:
       
-      <h3>Key Features:</h3>
-      <ul>
-        <li><strong>Lightning-Fast Recursive Calculation</strong> with optimized performance</li>
-        <li><strong>Smart Input Validation</strong> for bulletproof error handling</li>
-        <li><strong>Clean, Production-Ready Code</strong> with modern JavaScript patterns</li>
-      </ul>
+      ### Key Features:
+      - **Lightning-Fast Recursive Calculation** with optimized performance
+      - **Smart Input Validation** for bulletproof error handling
+      - **Clean, Production-Ready Code** with modern JavaScript patterns
       
-      <p>This utility provides efficient factorial computation with enterprise-grade code quality.</p>
+      This utility provides efficient factorial computation with enterprise-grade code quality.
       
       <vibeArtifact id="factorial-function" title="JavaScript Factorial Function" activeRoute="/">
         <vibeAction type="file" filePath="index.js">
@@ -529,7 +527,7 @@ console.log(factorial(5));
         </vibeAction>
       </vibeArtifact>
 
-      <p><strong>Your Factorial Calculator has been successfully created!</strong> Built with vanilla JavaScript, it's ready to run.</p>
+      **Your Factorial Calculator has been successfully created!** Built with vanilla JavaScript, it's ready to run.
     </assistant_response>
   </example>
 
@@ -537,16 +535,14 @@ console.log(factorial(5));
     <user_query>Build a REST API for user management</user_query>
 
     <assistant_response>
-      <p>I'm creating a REST API for User Management with these awesome features:</p>
+      I'm creating a REST API for User Management with these awesome features:
       
-      <h3>Key Features:</h3>
-      <ul>
-        <li><strong>Enterprise-Grade Security</strong> with JWT authentication and bcrypt hashing</li>
-        <li><strong>Bulletproof API Protection</strong> with rate limiting and CORS security</li>
-        <li><strong>Production-Ready Architecture</strong> with comprehensive error handling</li>
-      </ul>
+      ### Key Features:
+      - **Enterprise-Grade Security** with JWT authentication and bcrypt hashing
+      - **Bulletproof API Protection** with rate limiting and CORS security
+      - **Production-Ready Architecture** with comprehensive error handling
       
-      <p>This API provides secure user management with industry-standard practices and enterprise security.</p>
+      This API provides secure user management with industry-standard practices and enterprise security.
       
       <vibeArtifact id="user-management-api" title="User Management REST API" activeRoute="/api/users">
         <vibeAction type="file" filePath="package.json">
@@ -791,7 +787,7 @@ module.exports = router;
         </vibeAction>
       </vibeArtifact>
 
-      <p><strong>Your User Management REST API has been successfully created!</strong> Built with Node.js and Express, it's ready to launch.</p>
+      **Your User Management REST API has been successfully created!** Built with Node.js and Express, it's ready to launch.
     </assistant_response>
   </example>
 
