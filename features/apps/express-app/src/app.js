@@ -62,7 +62,7 @@ app.use(cors({
 
 // routes declaration
 app.get("/", (req, res) => {
-    res.send("Vibe Express Server is running!");
+    res.render("index");
 });
 
 app.use("/api", routes);
