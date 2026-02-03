@@ -1,19 +1,20 @@
 "use client";
 
 import React, { useState, useRef } from "react";
-import { Paperclip, Sparkles, SendHorizontal, Code, X } from "lucide-react";
+import { Paperclip, Sparkles, SendHorizontal, Code, X, Square, Loader2 } from "lucide-react";
 import { useChat } from "@ai-sdk/react";
 import { useWorkspaceStore } from "@/context";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface AiInputProps {
   onSend: (text: string, files: File[]) => void;
+  onStop?: () => void;
 }
 
-const AiInput: React.FC<AiInputProps> = ({ onSend }) => {
+const AiInput: React.FC<AiInputProps> = ({ onSend, onStop }) => {
   const [files, setFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { currentWorkspace, chatInput, setChatInput, selectedContexts, removeSelectedContext, credits, fetchCredits } = useWorkspaceStore();
+  const { currentWorkspace, chatInput, setChatInput, selectedContexts, removeSelectedContext, credits, fetchCredits, streamingStatus } = useWorkspaceStore();
 
   React.useEffect(() => {
     fetchCredits();
@@ -141,26 +142,36 @@ const AiInput: React.FC<AiInputProps> = ({ onSend }) => {
             <button
               type="button"
               onClick={handleFileClick}
-              className="text-muted-foreground hover:text-foreground transition-colors"
+              disabled={streamingStatus === "streaming"}
+              className="text-muted-foreground hover:text-foreground transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
               title="Attach Files"
             >
               <Paperclip size={20} />
             </button>
             <button
               type="button"
-              className="text-muted-foreground hover:text-foreground transition-colors"
+              disabled={streamingStatus === "streaming"}
+              className="text-muted-foreground hover:text-foreground transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
               title="AI Tools"
             >
               <Sparkles size={20} />
             </button>
 
             <button
-              type="submit"
-              disabled={!chatInput.trim() && files.length === 0 && selectedContexts.length === 0}
-              className="ml-auto text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Send Message"
+              type={streamingStatus === "streaming" ? "button" : "submit"}
+              onClick={streamingStatus === "streaming" ? onStop : undefined}
+              disabled={streamingStatus !== "streaming" && !chatInput.trim() && files.length === 0 && selectedContexts.length === 0}
+              className="ml-auto flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-all disabled:opacity-50 disabled:cursor-not-allowed group relative"
+              title={streamingStatus === "streaming" ? "Stop Generating" : "Send Message"}
             >
-              <SendHorizontal size={20} />
+              {streamingStatus === "streaming" ? (
+                <div className="relative flex items-center justify-center">
+                   <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                   <Square className="h-2 w-2 absolute fill-primary text-primary" />
+                </div>
+              ) : (
+                <SendHorizontal size={20} className="group-hover:translate-x-0.5 transition-transform" />
+              )}
             </button>
           </div>
         </form>
