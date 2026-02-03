@@ -37,7 +37,7 @@ export function getInitialFiles(
   ]);
 
   const ignoredPatterns = [
-    /^\.env/,
+    /^\.env(?!\.example$)/, // Ignore .env files BUT allow .env.example
     /^npm-debug\.log/,
     /^yarn-debug\.log/,
     /^yarn-error\.log/,
@@ -82,6 +82,13 @@ export function getInitialFiles(
         // Normalize path to use forward slashes for the DB
         const normalizedPath = relPath.replace(/\\/g, "/");
         files[normalizedPath] = { content };
+
+        // Duplicate .env.example to .env
+        if (item === ".env.example") {
+           const envPath = normalizedPath.replace(".env.example", ".env");
+           // Only create .env if it doesn't exist (though in this context we are building fresh object)
+           files[envPath] = { content };
+        }
       }
     }
   }
