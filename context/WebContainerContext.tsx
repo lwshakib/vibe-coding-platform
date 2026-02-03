@@ -23,7 +23,7 @@ interface WebContainerContextType {
   terminalRef: React.MutableRefObject<Terminal | null>;
   setPort: (port: number | null) => void;
   setUrl: (url: string | null) => void;
-  startDevServer: (wc: WebContainer) => Promise<void>;
+  startDevServer: (wc: WebContainer, skipClear?: boolean) => Promise<void>;
   stopDevServer: () => Promise<void>;
   runInstall: (wc: WebContainer) => Promise<boolean>;
   stopInstall: () => Promise<void>;
