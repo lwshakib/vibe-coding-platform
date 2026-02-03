@@ -1,6 +1,6 @@
 import React from "react";
 import { Text, View, SafeAreaView, TouchableOpacity, StatusBar } from "react-native";
-import { Sparkles, ArrowRight, Layout } from "lucide-react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 export default function Index() {
   return (
@@ -10,7 +10,7 @@ export default function Index() {
         {/* Header/Logo */}
         <View className="flex-row items-center space-x-2">
           <View className="p-2 bg-indigo-600 rounded-xl shadow-sm">
-            <Sparkles size={24} color="white" />
+            <MaterialCommunityIcons name="sparkles" size={24} color="white" />
           </View>
           <Text className="text-xl font-bold tracking-tighter uppercase italic text-black ml-2">
             Vibe.Native
@@ -36,14 +36,14 @@ export default function Index() {
             className="h-16 w-full flex-row items-center justify-center space-x-3 rounded-2xl bg-indigo-600 px-8 shadow-xl shadow-indigo-500/20"
           >
             <Text className="text-white font-bold text-lg mr-2">Start Development</Text>
-            <ArrowRight size={20} color="white" />
+            <MaterialCommunityIcons name="arrow-right" size={20} color="white" />
           </TouchableOpacity>
 
           <TouchableOpacity
             activeOpacity={0.8}
             className="h-16 w-full flex-row items-center justify-center space-x-2 rounded-2xl border border-zinc-200 px-8"
           >
-            <Layout size={20} color="black" opacity={0.4} />
+            <MaterialCommunityIcons name="view-dashboard-outline" size={20} color="black" style={{ opacity: 0.4 }} />
             <Text className="text-black font-bold text-lg ml-2">UI Components</Text>
           </TouchableOpacity>
         </View>
