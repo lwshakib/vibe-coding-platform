@@ -78,19 +78,45 @@ export const CustomSearchBar: React.FC<CustomSearchBarProps> = ({
 
   const detectedPaths = currentWorkspace?.detectedPaths || [];
   
-  const allPaths = useMemo(() => {
-    return Array.from(new Set(detectedPaths)).sort((a, b) => {
-      if (a === "/") return -1;
-      if (b === "/") return 1;
+  const groupedSuggestions = useMemo(() => {
+    const filter = localValue.toLowerCase().trim();
+    const activePaths = detectedPaths.length > 0 
+      ? detectedPaths 
+      : ["/"];
+
+    // Filter paths based on search input
+    const filtered = activePaths.filter(p => 
+      !filter || p.toLowerCase().includes(filter)
+    );
+
+    const groups: Record<string, string[]> = {};
+    
+    filtered.forEach(path => {
+      if (path === "/") {
+        if (!groups["Application Root"]) groups["Application Root"] = [];
+        groups["Application Root"].push(path);
+        return;
+      }
+      
+      const parts = path.split('/').filter(Boolean);
+      const groupName = parts.length > 0 ? `/${parts[0]}` : "Application Root";
+      
+      if (!groups[groupName]) groups[groupName] = [];
+      groups[groupName].push(path);
+    });
+    
+    // Sort groups: "Application Root" first, then alphabetical
+    const sortedGroupNames = Object.keys(groups).sort((a, b) => {
+      if (a === "Application Root") return -1;
+      if (b === "Application Root") return 1;
       return a.localeCompare(b);
     });
-  }, [detectedPaths]);
-
-  const filteredSuggestions = useMemo(() => {
-    if (!localValue || localValue === "/") return allPaths;
-    const filter = localValue.toLowerCase();
-    return allPaths.filter(p => p.toLowerCase().includes(filter));
-  }, [allPaths, localValue]);
+    
+    return sortedGroupNames.map(name => ({
+      name,
+      paths: groups[name].sort((a, b) => a.length - b.length || a.localeCompare(b))
+    }));
+  }, [detectedPaths, localValue]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
@@ -137,7 +163,7 @@ export const CustomSearchBar: React.FC<CustomSearchBarProps> = ({
         ...currentWorkspace,
         detectedPaths: data.paths,
       });
-      toast.success("Paths analyzed successfully");
+      toast.success(`${data.paths.length} routes discovered`);
     } catch (err) {
       console.error(err);
       toast.error("Failed to analyze project structure");
@@ -392,33 +418,42 @@ export const CustomSearchBar: React.FC<CustomSearchBarProps> = ({
                   </Button>
                 </div>
               ) : (
-                <>
-                  {filteredSuggestions.length > 0 ? (
-                    filteredSuggestions.map((path) => (
-                      <button
-                        key={path}
-                        onClick={() => handleSelectPath(path)}
-                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left hover:bg-muted/80 transition-all group relative"
-                      >
-                        <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-primary/5 text-primary/60 group-hover:bg-primary/10 group-hover:text-primary transition-all">
-                          <Globe className="w-3.5 h-3.5" />
-                        </div>
-                        <div className="flex flex-col min-w-0">
-                          <span className="font-semibold truncate text-foreground/90 group-hover:text-foreground">
-                            {path}
+                <div className="space-y-4">
+                  {groupedSuggestions.length > 0 ? (
+                    groupedSuggestions.map((group) => (
+                      <div key={group.name} className="space-y-1">
+                        <div className="px-4 py-1.5 flex items-center gap-2 sticky top-0 bg-background/98 backdrop-blur-sm z-10 border-y border-border/10">
+                          <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-primary/70">
+                            {group.name}
                           </span>
-                          {path === "/" && (
-                            <span className="text-[10px] text-muted-foreground/60">
-                              Primary Entry Point
-                            </span>
-                          )}
+                          <div className="h-px flex-1 bg-gradient-to-r from-primary/20 to-transparent" />
                         </div>
-                        <ChevronRight className="ml-auto w-3.5 h-3.5 text-muted-foreground/20 group-hover:text-primary/60 transition-colors" />
                         
-                        {path === value && (
-                          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-6 bg-primary rounded-r-full" />
-                        )}
-                      </button>
+                        <div className="space-y-0.5">
+                          {group.paths.map((path) => (
+                            <button
+                              key={path}
+                              onClick={() => handleSelectPath(path)}
+                              className="w-full flex items-center gap-3 px-4 py-2 text-sm text-left hover:bg-muted/60 transition-all group relative border-l-2 border-transparent hover:border-primary/40"
+                            >
+                              <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-primary/5 text-primary/40 group-hover:bg-primary/10 group-hover:text-primary transition-all">
+                                <Globe className="w-3.5 h-3.5" />
+                              </div>
+                              <div className="flex flex-col min-w-0">
+                                <span className="font-semibold truncate text-foreground/80 group-hover:text-foreground">
+                                  {path}
+                                </span>
+                                {path === "/" && (
+                                  <span className="text-[10px] text-muted-foreground/50">
+                                    Primary Entry Point
+                                  </span>
+                                )}
+                              </div>
+                              <ChevronRight className="ml-auto w-3.5 h-3.5 text-muted-foreground/20 group-hover:text-primary/60 transition-colors" />
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     ))
                   ) : (
                     <div className="py-12 px-4 text-center">
@@ -429,7 +464,7 @@ export const CustomSearchBar: React.FC<CustomSearchBarProps> = ({
                       <p className="text-xs text-muted-foreground/60 mt-1">Try a different search term or re-analyze.</p>
                     </div>
                   )}
-                </>
+                </div>
               )}
             </div>
           </motion.div>
