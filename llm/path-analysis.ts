@@ -1,48 +1,62 @@
-import { google } from "@ai-sdk/google";
-import { generateText } from "ai";
+import { generateObject } from "ai";
+import { z } from "zod";
 import { GeminiModel } from "./model";
 
-export async function analyzeProjectPaths(files: Record<string, any>) {
-  const fileList = Object.keys(files).join("\n");
+/**
+ * Analyzes project files to identify web routes/paths.
+ * Uses file contents to trace complex routing (e.g., Express router mounts).
+ */
+export async function analyzeProjectPaths(files: Record<string, { content: string } | string>) {
+  // Filter for relevant files to avoid overwhelming the model with assets/configs
+  const relevantExtensions = [".js", ".ts", ".jsx", ".tsx", ".yaml", ".yml", ".json"];
+  const fileDetails = Object.entries(files)
+    .filter(([path]) => relevantExtensions.some(ext => path.endsWith(ext)) && !path.includes("node_modules"))
+    .map(([path, file]) => `File: ${path}\nContent:\n${typeof file === 'string' ? file : file.content}\n---`)
+    .join("\n");
   
   const prompt = `
-    You are an expert web developer analyzer. I will provide you with a list of files in a project.
-    Your task is to identify all the possible web routes (paths) that this application exposes.
+    You are an expert web developer analyzer. I will provide you with a list of files and their contents from a project.
+    Your task is to identify all possible web routes (paths) that this application exposes for a preview.
     
-    Consider the following project structures:
-    - Next.js (App Router): Look for app/**/page.tsx or app/**/route.ts
-    - Next.js (Pages Router): Look for pages/**/*.tsx
-    - React (Vite): Look for main components, routes defined in App.tsx or similar.
-    - Express: Look for app.get(), router.get() in index.js or routes/ files.
+    ANALYSIS GUIDELINES:
+    1. Express.js: Trace router chain. If app.js mounts \`app.use('/api', apiRouter)\` and apiRouter mounts \`router.use('/users', userRouters)\`, the path is \`/api/users\`.
+    2. Next.js (App Router): \`app/dashboard/page.tsx\` -> \`/dashboard\`. \`app/api/hello/route.ts\` -> \`/api/hello\`.
+    3. Next.js (Pages Router): \`pages/about.tsx\` -> \`/about\`. \`pages/index.tsx\` -> \`/\`.
+    4. React Router: Look for \`<Route path="/profile" ... />\` and similar definitions.
     
-    Here is the list of files in the project:
-    ${fileList}
+    PROJECT FILES:
+    ${fileDetails}
     
-    Return ONLY a JSON array of strings representing the paths (e.g., ["/", "/about", "/dashboard/settings"]).
-    Do not include any other text, markdown formatting, or explanation.
-    If you cannot determine any paths, return ["/"].
+    Identify all unique routes. Always include "/" if it's a web app.
+    Return the paths in a structured object.
   `;
 
   try {
-    const { text } = await generateText({
+    const { object } = await generateObject({
       model: GeminiModel(),
+      schema: z.object({
+        paths: z.array(z.string().describe("A web route path, starting with /")),
+      }),
       prompt: prompt,
     });
 
-    try {
-      // Clean up the response in case the model adds markdown code blocks
-      const cleanedText = text.replace(/```json/g, "").replace(/```/g, "").trim();
-      const paths = JSON.parse(cleanedText);
-      if (Array.isArray(paths)) {
-        // Ensure starting with / and unique
-        return Array.from(new Set(paths.map(p => p.startsWith("/") ? p : `/${p}`)));
-      }
-    } catch (e) {
-      console.error("Failed to parse AI response for paths:", text);
+    if (object.paths && Array.isArray(object.paths)) {
+      const sanitizedPaths = Array.from(new Set(
+        object.paths
+          .map(p => {
+            let clean = p.trim().split("?")[0].split("#")[0]; // Remove query/hash
+            if (!clean.startsWith("/")) clean = "/" + clean;
+            return clean;
+          })
+          .filter(p => p !== "/favicon.ico" && !p.includes("*"))
+      ));
+      
+      return sanitizedPaths.length > 0 ? sanitizedPaths : ["/"];
     }
   } catch (err) {
-    console.error("AI analysis failed:", err);
+    console.error("AI path analysis failed:", err);
   }
 
   return ["/"];
 }
+
