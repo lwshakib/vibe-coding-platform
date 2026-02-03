@@ -2,13 +2,14 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { CheckCircle, Package, Rocket, Zap, AlertCircle } from "lucide-react";
+import { CheckCircle, Package, Rocket, Zap, AlertCircle, RotateCcw } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useWebContainerContext } from "@/context/WebContainerContext";
 import { useWorkspaceStore } from "@/context";
 import { useTheme } from "next-themes";
 
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 type ResponsiveMode = "desktop" | "tablet" | "mobile";
 
@@ -26,7 +27,7 @@ export default function WebPreview({
   reloadKey,
 }: WebPreviewProps) {
   const { currentWorkspace } = useWorkspaceStore();
-  const { state, url: webPreviewUrl, error } = useWebContainerContext();
+  const { state, url: webPreviewUrl, error, instance, startDevServer } = useWebContainerContext();
   const { theme, resolvedTheme } = useTheme();
 
   const getStateIcon = (state: string) => {
@@ -156,15 +157,24 @@ export default function WebPreview({
             <div className="space-y-4 w-full">
               <div className="space-y-1">
                 <h3
-                  className={`text-lg font-semibold tracking-tight ${
+                  className={cn(
+                    "text-lg font-semibold tracking-tight",
                     state === "error" ? "text-destructive" : "text-foreground"
-                  }`}
+                  )}
                 >
                   {getStateTitle(state)}
                 </h3>
-                <p className="text-sm text-muted-foreground">
-                  {getStateDescription(state)}
-                </p>
+                <div className="flex flex-col items-center gap-2">
+                  <p className="text-sm text-muted-foreground">
+                    {getStateDescription(state)}
+                  </p>
+                  {state === "installing" && (
+                    <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20 animate-pulse">
+                      <div className="size-1.5 rounded-full bg-primary" />
+                      <span className="text-[10px] font-bold text-primary uppercase tracking-tighter">Syncing Environment</span>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {state !== "error" && (
@@ -180,22 +190,43 @@ export default function WebPreview({
                 </div>
               )}
 
-              {state === "starting" && (
-                <div className="pt-4 animate-in fade-in slide-in-from-bottom-2 duration-1000 delay-5000">
-                  <p className="text-[10px] text-muted-foreground mb-2">
-                    Taking longer than expected?
-                  </p>
+              {state === "error" && (
+                <div className="pt-4 space-y-2">
                   <Button
-                    variant="outline"
+                    variant="destructive"
                     size="sm"
-                    className="h-8 text-[10px] uppercase tracking-wider px-4 border-primary/20 hover:bg-primary/5"
+                    className="h-9 px-6 font-bold uppercase tracking-wider rounded-xl shadow-lg shadow-destructive/20"
                     onClick={() => {
-                      // Attempt to force ready if terminal shows it's likely up
-                      window.dispatchEvent(new CustomEvent("vibe-force-ready"));
+                      if (instance) startDevServer(instance);
                     }}
                   >
-                    Force Preview
+                    <RotateCcw className="w-4 h-4 mr-2" />
+                    Restart Server
                   </Button>
+                  <p className="text-[10px] text-muted-foreground">
+                    Try restarting the server if the error persists.
+                  </p>
+                </div>
+              )}
+
+              {state === "starting" && (
+                <div className="pt-4 space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-1000">
+                  <div className="flex flex-col items-center gap-2">
+                    <p className="text-[10px] text-muted-foreground">
+                      Taking longer than expected?
+                    </p>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 text-[10px] uppercase tracking-wider px-4 border border-border/40 hover:bg-muted/60"
+                      onClick={() => {
+                        if (instance) startDevServer(instance);
+                      }}
+                    >
+                      <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
+                      Restart Server
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>
@@ -209,6 +240,7 @@ export default function WebPreview({
             className={getIframeStyles()}
             title="Project Preview"
             allow="cross-origin-isolated"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
           />
         </div>
       )}
