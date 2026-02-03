@@ -214,10 +214,13 @@ export default function TerminalUI() {
     });
   }, [theme, resolvedTheme, mounted]);
 
-  // Focus and Fit active terminal
+  // Focus and Fit active terminal, and update global terminal ref for system logs
   useEffect(() => {
     if (!activeTabId || !xtermsRef.current[activeTabId]) return;
     
+    // Update global terminal ref so system logs (starts, installs) show on active tab
+    globalTerminalRef.current = xtermsRef.current[activeTabId];
+
     const term = xtermsRef.current[activeTabId];
     const fitAddon = fitAddonsRef.current[activeTabId];
     const container = terminalContainersRef.current[activeTabId];
@@ -249,7 +252,8 @@ export default function TerminalUI() {
       clearTimeout(timer);
       resizeObserver.disconnect();
     };
-  }, [activeTabId, tabs.length]); // Re-run if tabs change or active tab shifts
+  }, [activeTabId, tabs.length, globalTerminalRef]); // Re-run if tabs change or active tab shifts
+
 
   const spawningRef = useRef<Record<string, boolean>>({});
 
@@ -443,7 +447,7 @@ export default function TerminalUI() {
                       if (isRunning) await stopDevServer();
                       const success = await runInstall(instance);
                       // Auto-restart server if installation was successful
-                      if (success) await startDevServer(instance);
+                      if (success) await startDevServer(instance, true);
                     }}
                     tooltip="Install Dependencies"
                     className="text-purple-500 hover:text-purple-600 hover:bg-purple-500/10"
