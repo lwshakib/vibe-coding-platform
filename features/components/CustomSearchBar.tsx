@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ExternalLink, RotateCcw, Globe, ChevronRight, Sparkles, Loader2, RefreshCw, Search } from "lucide-react";
+import { ExternalLink, RotateCcw, Globe, ChevronRight, Sparkles, Loader2, RefreshCw, Search, Rocket } from "lucide-react";
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { cn } from "@/lib/utils";
 import {
@@ -16,6 +16,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useWebContainerContext } from "@/context/WebContainerContext";
 import { AnimatePresence, motion } from "motion/react";
 import { useWorkspaceStore } from "@/context";
 import { toast } from "sonner";
@@ -31,6 +32,9 @@ interface CustomSearchBarProps {
   placeholder?: string;
   port?: number;
   onPortChange?: (port: number) => void;
+  onRestartServer?: () => void;
+  onStopServer?: () => void;
+  onStartServer?: () => void;
   disabled?: boolean;
   files?: any;
 }
@@ -46,10 +50,14 @@ export const CustomSearchBar: React.FC<CustomSearchBarProps> = ({
   placeholder = "Search or enter path...",
   port = 3000,
   onPortChange,
+  onRestartServer,
+  onStopServer,
+  onStartServer,
   disabled,
   files,
 }) => {
   const { currentWorkspace, setCurrentWorkspace } = useWorkspaceStore();
+  const { state: wcState } = useWebContainerContext();
   const [isFocused, setIsFocused] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [localValue, setLocalValue] = useState(value);
@@ -237,6 +245,53 @@ export const CustomSearchBar: React.FC<CustomSearchBarProps> = ({
                       {p}
                     </button>
                   ))}
+                </div>
+              </div>
+
+              <div className="pt-4 mt-2 border-t border-border/40">
+                <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground/60 mb-3 ml-1">Server Controls</p>
+                <div className="grid grid-cols-1 gap-2">
+                   {wcState === "stopped" || wcState === "idle" || wcState === "error" ? (
+                      <Button 
+                        size="sm" 
+                        variant="default"
+                        className="h-9 w-full rounded-xl font-bold text-[11px] uppercase tracking-wider"
+                        onClick={() => {
+                          if (onStartServer) onStartServer();
+                          setIsPopoverOpen(false);
+                        }}
+                      >
+                        <Rocket className="w-3.5 h-3.5 mr-2" />
+                        Start Server
+                      </Button>
+                   ) : (
+                      <div className="flex gap-2">
+                         <Button 
+                            size="sm" 
+                            variant="outline"
+                            className="h-9 flex-1 rounded-xl font-bold text-[11px] uppercase tracking-wider border-border/60 hover:bg-muted/60"
+                            onClick={() => {
+                              if (onStopServer) onStopServer();
+                              setIsPopoverOpen(false);
+                            }}
+                          >
+                            <div className="size-2 rounded-full bg-destructive mr-2" />
+                            Stop
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="secondary"
+                            className="h-9 flex-1 rounded-xl font-bold text-[11px] uppercase tracking-wider"
+                            onClick={() => {
+                              if (onRestartServer) onRestartServer();
+                              setIsPopoverOpen(false);
+                            }}
+                          >
+                            <RotateCcw className="w-3.5 h-3.5 mr-2" />
+                            Restart
+                          </Button>
+                      </div>
+                   )}
                 </div>
               </div>
             </form>
