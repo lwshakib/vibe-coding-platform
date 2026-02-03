@@ -47,7 +47,7 @@ const RightSideView: React.FC = () => {
     isSyncing,
     syncWithGithub,
   } = useWorkspaceStore();
-  const { url: previewUrl, port, setPort } = useWebContainerContext();
+  const { url: previewUrl, port, setPort, instance, startDevServer, stopDevServer } = useWebContainerContext();
 
   const [repos, setRepos] = useState<any[]>([]);
   const [isLoadingRepos, setIsLoadingRepos] = useState(false);
@@ -303,6 +303,9 @@ const RightSideView: React.FC = () => {
                     onPortChange={(newPort) => {
                       setPort(newPort);
                     }}
+                    onRestartServer={() => instance && startDevServer(instance)}
+                    onStopServer={() => stopDevServer()}
+                    onStartServer={() => instance && startDevServer(instance)}
                     files={currentWorkspace?.files}
                   />
                 </motion.div>
