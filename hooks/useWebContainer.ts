@@ -36,11 +36,7 @@ export function useWebContainer(
   const devProcessRef = useRef<WebContainerProcess | null>(null);
   const installProcessRef = useRef<WebContainerProcess | null>(null);
   
-  // Auto-healing state
-  const isExplicitStopRef = useRef(false);
-  const lastRestartTimeRef = useRef(0);
-  const restartCountRef = useRef(0);
-
+  // log buffer
   const logBufferRef = useRef<string[]>([]);
 
   const writeToTerminal = useCallback((data: string) => {
@@ -145,7 +141,6 @@ export function useWebContainer(
     }
     
     isStartingRef.current = true;
-    isExplicitStopRef.current = false; // Reset stop flag on start
     setState("starting");
     writeToTerminal("\r\n\x1b[35m[Vibe] Initializing fresh server boot sequence...\x1b[0m\r\n");
     
@@ -248,28 +243,16 @@ export function useWebContainer(
           isStartedRef.current = false;
           isStartingRef.current = false;
           devProcessRef.current = null;
-          setUrl(null);
-          setPort(null);
-          setState("stopped");
 
-          const now = Date.now();
-          const isRecentCrash = now - lastRestartTimeRef.current < 10000;
-          if (isRecentCrash) {
-            restartCountRef.current += 1;
+          if (code === 0 || code === null) {
+            setUrl(null);
+            setPort(null);
+            setState("stopped");
           } else {
-            restartCountRef.current = 0;
-          }
-          lastRestartTimeRef.current = now;
-
-          if (!isExplicitStopRef.current && restartCountRef.current < 5) {
-             writeToTerminal(`\x1b[35m\r\n[Vibe] Server stopped unexpectedly. Attempting automatic recovery (Attempt ${restartCountRef.current + 1}/5)...\x1b[0m\r\n`);
-             setTimeout(() => {
-                if (!isExplicitStopRef.current) {
-                   startDevServer(wc, true);
-                }
-             }, 2000);
-          } else if (restartCountRef.current >= 5) {
-             writeToTerminal("\x1b[31m\r\n[Vibe] Maximum auto-restart attempts reached. Please check your code for persistent errors.\x1b[0m\r\n");
+            // For non-zero exit codes (errors), we keep the URL and state 
+            // so the web preview remains visible with whatever it last showed.
+            // The error is already logged to the terminal above.
+            writeToTerminal("\x1b[90m[Vibe] Keep-alive: Preview remains mounted. Check terminal for error details.\x1b[0m\r\n");
           }
         }
       });
@@ -278,14 +261,12 @@ export function useWebContainer(
       isStartedRef.current = false;
       isStartingRef.current = false;
       devProcessRef.current = null;
-      setState("stopped");
     }
   }, [setExpoQRData, setShowExpoQR, writeToTerminal, state]);
 
   const stopDevServer = useCallback(async () => {
     if (devProcessRef.current) {
       writeToTerminal("\x1b[33m\r\n[Vibe] Stopping dev server...\x1b[0m\r\n");
-      isExplicitStopRef.current = true;
       devProcessRef.current.kill();
       try {
         await Promise.race([
@@ -378,7 +359,6 @@ export function useWebContainer(
             if (!isStreaming) {
               writeToTerminal(`\x1b[31m[Vibe] package.json parse error: ${parseError.message}\x1b[0m\r\n`);
               isSyncingRef.current = false;
-              setState("error");
               setError(`Invalid package.json: ${parseError.message}`);
               return;
             }
@@ -480,7 +460,8 @@ export function useWebContainer(
         isInstallingRef.current = false;
         isMountingRef.current = false;
         isStartingRef.current = false;
-        setState("error");
+        // We no longer transition to 'error' state here to keep the terminal 
+        // as the primary source of error information, as requested.
         setError(err.message);
         writeToTerminal(`\x1b[31m[Vibe] WebContainer Error: ${err.message}\x1b[0m\r\n`);
       } finally {
@@ -505,7 +486,16 @@ export function useWebContainer(
 
     const hasChanges = Object.entries(files).some(([path, { content }]) => mountedFilesRef.current[path] !== content) ||
                        Object.keys(mountedFilesRef.current).some(path => !files[path]);
-    const shouldTrigger = !isStreaming && (hasChanges || !isStartedRef.current || wasStreaming);
+    
+    // Only trigger mount and run if:
+    // 1. Files have actually changed (hasChanges)
+    // 2. We just stopped streaming (wasStreaming)
+    // 3. It's the first mount (no files mounted yet AND not already starting)
+    const shouldTrigger = !isStreaming && (
+      hasChanges || 
+      wasStreaming || 
+      (!isStartedRef.current && !isStartingRef.current && Object.keys(mountedFilesRef.current).length === 0)
+    );
 
     if (shouldTrigger) {
       if (isMountingRef.current || isInstallingRef.current) return;
