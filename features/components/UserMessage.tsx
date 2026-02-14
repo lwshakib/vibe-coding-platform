@@ -17,7 +17,7 @@ const UserMessage: React.FC<UserMessageProps> = ({ content, user }) => {
     <div className="flex justify-end mb-6 group animate-in fade-in slide-in-from-right-4 duration-300">
       <div className="flex items-start gap-4 max-w-[85%]">
         <div className="flex flex-col items-end flex-1 min-w-0">
-          <div className="bg-primary/10 text-foreground border border-primary/20 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow duration-200">
+          <div className="bg-primary/10 text-foreground border border-primary/20 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow duration-200 break-words max-w-full overflow-hidden">
             <MarkdownContent
               content={content}
               className="text-sm leading-relaxed"

@@ -230,6 +230,7 @@ You are Vibe, an expert AI assistant and exceptional senior software developer w
     When creating Node.js/Express applications:
     - Create or modify the main logic in src/index.js (or index.js based on project structure)
     - Always update package.json with appropriate dependencies and scripts
+    - WEB CONCONTAINER OPTIMIZATION: Use 'node' instead of 'nodemon' for both 'dev' and 'start' scripts. The Vibe environment handles process watching and automatic restarts natively for faster and more reliable performance. Avoiding nodemon prevents race conditions during file syncs.
     - Use Express for web server applications
     - Implement proper MVC (Model-View-Controller) architecture:
       * Create separate folders for models, views, controllers, and routes
@@ -298,6 +299,8 @@ You are Vibe, an expert AI assistant and exceptional senior software developer w
   For Next.js projects: components/ui/**
   For React projects: src/components/ui/**
 
+  CRITICAL: NEVER recreate or overwrite existing shadcn/ui components if they are already present in the project. If you need to modify a shadcn component, you MUST use partial updates (startLine/endLine) to modify ONLY the necessary parts. Recreating these files from scratch is strictly forbidden.
+
   You can use all shadcn/ui components by simply importing and using them in your code. Available components include but are not limited to: Button, Input, Card, Dialog, Sheet, Dropdown, Table, Form, Toast, Alert, Badge, Avatar, Checkbox, RadioGroup, Select, Textarea, Switch, Slider, Progress, Accordion, Tabs, Separator, Label, and many more.
 
   Example usage:
@@ -333,6 +336,7 @@ You are Vibe, an expert AI assistant and exceptional senior software developer w
     2. IMPORTANT: When receiving file modifications, ALWAYS use the latest file modifications and make any edits to the latest content of a file. This ensures that all changes are applied to the most up-to-date version of the file.
 
     3. MANDATORY: The assistant MUST generate code strictly according to the files the user has provided in the PROJECT_FILES section. Always parse and respect the full contents of PROJECT_FILES before proposing, creating, or modifying any files. When producing or updating files:
+       - AI-REFERENCE LINE NUMBERS: Project files are provided with line numbers (e.g., "1: content") ONLY for your reference to help with partial updates. NEVER include these line numbers in your output content.
        - Treat the provided PROJECT_FILES as the single source of truth for the current project state.
        - Never overwrite or duplicate files without explicitly showing the full updated content and referencing that the update is based on the latest PROJECT_FILES content.
        - When adding new files, ensure they integrate cleanly with the existing files in PROJECT_FILES (imports, package.json scripts/dependencies, relative paths, etc.).
@@ -366,6 +370,8 @@ You are Vibe, an expert AI assistant and exceptional senior software developer w
           - startLine: The 1-based line number to start replacing from.
           - endLine: The 1-based line number to end replacing at (inclusive).
           - The content between the tags will replace the lines from startLine to endLine.
+          - ULTRA IMPORTANT: For existing files, YOU MUST USE PARTIAL UPDATES (startLine/endLine) for ANY change that preserves more than 50% of the file. Full file replacements are strictly forbidden for small or medium changes.
+          - TO DELETE LINES: Use startLine and endLine covering the lines to be removed, and provide ONLY the lines that should remain in that range (or leave empty if all lines in range should be deleted). This is how you produce "negative" line changes.
           - Use this for small changes to avoid regenerating large files.
 
     10. The order of the actions is VERY IMPORTANT. Ensure all dependencies are properly defined in package.json files.
@@ -564,7 +570,7 @@ console.log(factorial(5));
   "name": "user-management-api",
   "version": "1.0.0",
   "scripts": {
-    "dev": "nodemon index.js",
+    "dev": "node index.js",
     "start": "node index.js"
   },
   "dependencies": {
@@ -574,9 +580,6 @@ console.log(factorial(5));
     "cors": "^2.8.5",
     "helmet": "^7.0.0",
     "express-rate-limit": "^6.8.1"
-  },
-  "devDependencies": {
-    "nodemon": "^3.0.1"
   }
 }
         </vibeAction>
@@ -1209,14 +1212,38 @@ Now analyze the user's message and provide your recommendation in the specified 
 5. Minimal punctuation (prefer none; hyphen only if essential)
 `;
 
+function formatProjectFiles(files: any) {
+  let filesObj = files;
+  if (typeof files === 'string') {
+    try {
+      filesObj = JSON.parse(files);
+    } catch (e) {
+      return files;
+    }
+  }
+
+  if (typeof filesObj !== 'object' || filesObj === null) {
+    return String(files);
+  }
+
+  return Object.entries(filesObj as Record<string, { content: string } | string>)
+    .map(([path, file]) => {
+      const content = typeof file === 'string' ? file : (file as any).content || "";
+      const lines = content.split('\n');
+      const numberedContent = lines.map((line: string, i: number) => `${i + 1}: ${line}`).join('\n');
+      return `File: ${path}\n---\n${numberedContent}\n---\n`;
+    })
+    .join('\n');
+}
+
 export const getFineTunedPrompt = (
-  files: string,
+  files: any,
   designScheme?: DesignScheme
 ) => {
   let prompt = CODE_GENERATION_SYSTEM_INSTRUCTION;
 
   // Replace placeholders
-  prompt = prompt.replace("{{PROJECT_FILES}}", files);
+  prompt = prompt.replace("{{PROJECT_FILES}}", formatProjectFiles(files));
 
   const designPart = designScheme
     ? `

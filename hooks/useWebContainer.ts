@@ -25,7 +25,7 @@ export function useWebContainer(
   const [url, setUrl] = useState<string | null>(null);
   const [port, setPort] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const { setShowExpoQR, setExpoQRData } = useWorkspaceStore();
+  const { setShowExpoQR, setExpoQRData, setTerminalError } = useWorkspaceStore();
 
   const mountedFilesRef = useRef<Record<string, string>>({});
   const isStartedRef = useRef(false);
@@ -35,12 +35,26 @@ export function useWebContainer(
   const isMountingRef = useRef(false);
   const devProcessRef = useRef<WebContainerProcess | null>(null);
   const installProcessRef = useRef<WebContainerProcess | null>(null);
+  const isIntentionalStopRef = useRef(false);
   
   // log buffer
   const logBufferRef = useRef<string[]>([]);
+  const lastOutputRef = useRef<string[]>([]);
 
   const writeToTerminal = useCallback((data: string) => {
     const formattedData = data.replace(/\n/g, "\r\n");
+    
+    // Maintain last 20 lines for error context
+    const lines = data.split('\n');
+    lines.forEach(line => {
+      if (line.trim()) {
+        lastOutputRef.current.push(line.trim());
+        if (lastOutputRef.current.length > 20) {
+          lastOutputRef.current.shift();
+        }
+      }
+    });
+
     if (terminalRef?.current) {
       if (logBufferRef.current.length > 0) {
         terminalRef.current.write(logBufferRef.current.join(""));
@@ -89,6 +103,7 @@ export function useWebContainer(
       setState("ready");
       isStartedRef.current = true;
       isStartingRef.current = false;
+      setTerminalError(null);
       writeToTerminal(`\x1b[32m\r\n[Vibe] Preview server active at ${url}\x1b[0m\r\n`);
       writeToTerminal(`\x1b[90m[Vibe] Mapped port: ${port}\x1b[0m\r\n`);
     });
@@ -169,7 +184,7 @@ export function useWebContainer(
     
     writeToTerminal("\x1b[36m[Vibe] Preparing to spawn new application instance...\x1b[0m\r\n");
 
-    await new Promise(resolve => setTimeout(resolve, 1200));
+    await new Promise(resolve => setTimeout(resolve, 500));
 
     let command = "npm";
     let args = ["run", "dev"];
@@ -183,15 +198,19 @@ export function useWebContainer(
              writeToTerminal("\x1b[90m[Vibe] No 'dev' script found, falling back to 'npm start'\x1b[0m\r\n");
            } else {
              command = "node";
-             args = [pkg.main || "index.js"];
+             const commonEntries = ["server.js", "app.js", "index.js", "main.js"];
+             const foundEntry = pkg.main || commonEntries.find(e => mountedFilesRef.current[e]) || "index.js";
+             args = [foundEntry];
              writeToTerminal(`\x1b[90m[Vibe] No scripts found, falling back to 'node ${args[0]}'\x1b[0m\r\n`);
            }
          }
        } catch (e) {}
     } else {
       command = "node";
-      args = ["index.js"];
-      writeToTerminal("\x1b[90m[Vibe] No package.json, attempting 'node index.js'\x1b[0m\r\n");
+      const commonEntries = ["server.js", "app.js", "index.js", "main.js"];
+      const foundEntry = commonEntries.find(e => mountedFilesRef.current[e]) || "index.js";
+      args = [foundEntry];
+      writeToTerminal(`\x1b[90m[Vibe] No package.json, attempting 'node ${args[0]}'\x1b[0m\r\n`);
     }
 
     try {
@@ -211,6 +230,18 @@ export function useWebContainer(
         new WritableStream({
           write: (data) => {
             writeToTerminal(data);
+            
+            // Check for potential runtime errors
+            const lowerData = data.toLowerCase();
+            const errorKeywords = ["error:", "failed", "exception", "err_", "fatal", "uncaught", "invalid", "could not find", "missing"];
+            if (errorKeywords.some(kw => lowerData.includes(kw)) && 
+                !lowerData.includes("failed to fetch") &&
+                !lowerData.includes("[vibe]")) {
+               setTerminalError({
+                 message: lastOutputRef.current.join("\n")
+               });
+            }
+
             if (data.includes("exp://")) {
               const match = data.match(/exp:\/\/[^\s\n\x1b]+/);
               if (match) {
@@ -234,8 +265,15 @@ export function useWebContainer(
       devProcess.exit.then((code) => {
         clearTimeout(watchdog);
         if (devProcessRef.current === devProcess) {
-          if (code !== 0 && code !== null) {
+          if (code !== 0 && code !== null && !isIntentionalStopRef.current) {
             writeToTerminal(`\x1b[31m\r\n[Vibe] Process exited with code: ${code}\x1b[0m\r\n`);
+            setTerminalError({
+              message: lastOutputRef.current.join("\n"),
+              exitCode: code
+            });
+          } else if (isIntentionalStopRef.current) {
+            isIntentionalStopRef.current = false;
+            writeToTerminal("\x1b[33m\r\n[Vibe] Process gracefully restarted for updates.\x1b[0m\r\n");
           } else {
             writeToTerminal("\x1b[33m\r\n[Vibe] Process terminated.\x1b[0m\r\n");
           }
@@ -266,6 +304,7 @@ export function useWebContainer(
 
   const stopDevServer = useCallback(async () => {
     if (devProcessRef.current) {
+      isIntentionalStopRef.current = true;
       writeToTerminal("\x1b[33m\r\n[Vibe] Stopping dev server...\x1b[0m\r\n");
       devProcessRef.current.kill();
       try {
@@ -284,29 +323,58 @@ export function useWebContainer(
   }, [writeToTerminal]);
 
   const runInstall = useCallback(async (wc: WebContainer) => {
-    if (isInstallingRef.current) return false;
+    if (isInstallingRef.current) {
+      writeToTerminal("\x1b[33m[Vibe] Installation already in progress. Skipping redundant call.\x1b[0m\r\n");
+      return true;
+    }
+    
     isInstallingRef.current = true;
     setState("installing");
+    writeToTerminal("\r\n\x1b[35m[Vibe] Starting dependency installation (npm install)...\x1b[0m\r\n");
+    
+    let installProcess: WebContainerProcess | null = null;
+    let timeoutHandle: any;
+
     try {
-      const installProcess = await wc.spawn("npm", ["install"], { cwd: "/" });
+      installProcess = await wc.spawn("npm", ["install"], { 
+        cwd: "/",
+        env: { NODE_ENV: "development" }
+      });
+      
       installProcessRef.current = installProcess;
       installProcess.output.pipeTo(new WritableStream({ write: (data) => writeToTerminal(data) }));
-      const installExitCode = await installProcess.exit;
-      if (installExitCode !== 0 && installProcessRef.current) {
-        writeToTerminal("\x1b[31m[Vibe] Dependency installation failed with exit code " + installExitCode + ".\x1b[0m\r\n");
-        isStartedRef.current = false;
-        return false;
+      
+      const timeoutPromise = new Promise<number>((_, reject) => {
+        timeoutHandle = setTimeout(() => {
+          if (installProcess) installProcess.kill();
+          reject(new Error("Installation timed out after 120s"));
+        }, 120000);
+      });
+
+      const installExitCode = await Promise.race([
+        installProcess.exit,
+        timeoutPromise
+      ]);
+      
+      clearTimeout(timeoutHandle);
+      
+      if (installExitCode === 0) {
+        writeToTerminal("\x1b[32m\r\n[Vibe] Dependencies successfully synchronized.\x1b[0m\r\n");
+      } else {
+        writeToTerminal(`\x1b[33m\r\n[Vibe] Dependency installation finished with status: ${installExitCode}. Attempting to proceed...\x1b[0m\r\n`);
       }
-      writeToTerminal("\x1b[32m[Vibe] Dependencies installed successfully.\x1b[0m\r\n");
+      
       return true;
     } catch (e: any) {
-      writeToTerminal(`\x1b[31m[Vibe] Installation error: ${e.message}\x1b[0m\r\n`);
-      return false;
+      clearTimeout(timeoutHandle);
+      const isTimeout = e.message.includes("timed out");
+      writeToTerminal(`\x1b[33m\r\n[Vibe] ${isTimeout ? "Warning" : "Note"}: ${e.message}. Moving forward with existing environment.\x1b[0m\r\n`);
+      return true; 
     } finally {
       installProcessRef.current = null;
       isInstallingRef.current = false;
     }
-  }, [writeToTerminal]);
+  }, [writeToTerminal, setTerminalError]);
 
   const stopInstall = useCallback(async () => {
     if (installProcessRef.current) {
@@ -384,16 +452,22 @@ export function useWebContainer(
             if (oldPkgStr) {
               try {
                 const oldPkg = JSON.parse(oldPkgStr);
-                const depsChanged = JSON.stringify(oldPkg.dependencies) !== JSON.stringify(pkg.dependencies);
-                const devDepsChanged = JSON.stringify(oldPkg.devDependencies) !== JSON.stringify(pkg.devDependencies);
+                const oldDeps = oldPkg.dependencies || {};
+                const newDeps = pkg.dependencies || {};
+                const oldDevDeps = oldPkg.devDependencies || {};
+                const newDevDeps = pkg.devDependencies || {};
+                
+                const depsChanged = JSON.stringify(oldDeps) !== JSON.stringify(newDeps);
+                const devDepsChanged = JSON.stringify(oldDevDeps) !== JSON.stringify(newDevDeps);
+                
                 if (depsChanged || devDepsChanged) {
                   dependenciesChanged = true;
-                  writeToTerminal("\r\n\x1b[35m[Vibe] Dependencies changed, scheduled installation...\x1b[0m\r\n");
+                  writeToTerminal("\r\n\x1b[35m[Vibe] Critical: Dependencies changed in package.json.\x1b[0m\r\n");
                 }
               } catch (e) {}
             } else if (pkg.dependencies || pkg.devDependencies) {
               dependenciesChanged = true;
-              writeToTerminal("\r\n\x1b[35m[Vibe] New package.json detected, scheduled installation...\x1b[0m\r\n");
+              writeToTerminal("\r\n\x1b[35m[Vibe] Initial package.json detected with dependencies.\x1b[0m\r\n");
             }
           }
         }

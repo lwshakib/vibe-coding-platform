@@ -9,6 +9,10 @@ type FileNode = FileLeaf | DirectoryNode;
 interface FileProgress {
   fullPath: string;
   status: "PROCESSING" | "COMPLETED";
+  additions?: number;
+  deletions?: number;
+  startLine?: number;
+  endLine?: number;
 }
 
 export interface ParsedVibeArtifact {
@@ -89,14 +93,30 @@ export function parseVibeArtifact(input: string): ParsedVibeArtifact {
     const remainingText = input.substring(fileEndIndex);
     const hasEndTag = remainingText.includes("</vibeAction>");
 
-    const isComplete = hasEndTag && fileContent.length > 0;
+    const isComplete = hasEndTag;
+
+    // Calculate additions and deletions
+    let additions = 0;
+    let deletions = 0;
+
+    if (startLine !== undefined && endLine !== undefined) {
+      deletions = endLine - startLine + 1;
+      additions = fileContent.trim() ? fileContent.trim().split("\n").length : 0;
+    } else {
+      // For full file writes, we consider all lines as additions
+      // We don't know deletions without the original file
+      additions = fileContent.trim() ? fileContent.trim().split("\n").length : 0;
+      deletions = 0;
+    }
 
     fileProgressMap.set(filePath, {
       fullPath: filePath,
       status: isComplete ? "COMPLETED" : "PROCESSING",
       startLine,
       endLine,
-    } as any);
+      additions,
+      deletions,
+    });
 
     // Clean up content (remove trailing incomplete tags)
     fileContent = fileContent.replace(/<[^>]*$/, "").trim();

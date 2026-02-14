@@ -5,6 +5,7 @@ import { useWorkspaceStore } from "@/context";
 import AiInput from "./AiInput";
 import UserMessage from "./UserMessage";
 import AssistantMessage from "./AssistantMessage";
+import TerminalErrorCard from "./TerminalErrorCard";
 import { useChat } from "@ai-sdk/react";
 import { ChevronLeft, RefreshCw } from "lucide-react";
 import { APP_PROMPT_SUGGESTIONS } from "@/lib/prompt-suggestions";
@@ -34,7 +35,9 @@ const LeftSideView: React.FC = () => {
     removeSelectedContext, 
     fetchCredits,
     syncWithGithub,
-    setChatInput
+    setChatInput,
+    terminalError,
+    setTerminalError
   } = useWorkspaceStore();
 
   const { instance, state: wcState, startDevServer } = useWebContainerContext();
@@ -191,15 +194,30 @@ const LeftSideView: React.FC = () => {
     return "";
   };
 
+  const handleFixError = (error: { message: string, exitCode?: number }) => {
+    const fixPrompt = `I encountered a terminal error${error.exitCode ? ` (exit code ${error.exitCode})` : ""}:\n\n\`\`\`\n${error.message}\n\`\`\`\n\nPlease explain what's wrong and fix it.`;
+    
+    sendMessage(
+      { text: fixPrompt, files: [] },
+      {
+        body: {
+          files: currentWorkspace?.files,
+          workspaceId: currentWorkspace?.id,
+        },
+      }
+    );
+    setTerminalError(null);
+  };
+
   // Auto-scroll to bottom on new messages
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [messages, terminalError]);
 
   return (
-    <div className="flex flex-col w-full h-full bg-background overflow-hidden border-r border-border/40 font-inter">
+    <div className="flex flex-col w-full h-full bg-background overflow-x-hidden border-r border-border/40 font-inter max-w-full">
       {/* Header with Project Name */}
       <header className="sticky top-0 z-20 h-14 px-4 flex items-center shrink-0 border-b border-border/10 bg-background/80 backdrop-blur-md transition-all">
         <div className="flex items-center gap-2">
@@ -242,9 +260,9 @@ const LeftSideView: React.FC = () => {
 
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto scroll-smooth [scrollbar-gutter:stable]"
+        className="flex-1 overflow-y-auto scroll-smooth [scrollbar-gutter:stable] min-w-0 w-full"
       >
-        <div className="p-2 pr-4 min-h-full flex flex-col">
+        <div className="p-2 px-3 min-h-full flex flex-col min-w-0 w-full">
           {messages.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center animate-in fade-in zoom-in-95 duration-1000">
               <div className="text-center max-w-lg px-4">
@@ -291,7 +309,7 @@ const LeftSideView: React.FC = () => {
               </div>
             </div>
           ) : (
-            <div className="flex flex-col py-4 w-full max-w-2xl mx-auto">
+            <div className="flex flex-col py-4 w-full max-w-2xl mx-auto min-w-0 flex-1">
               {messages.map((m, idx) =>
                 m.role === "user" ? (
                   <UserMessage
@@ -309,6 +327,16 @@ const LeftSideView: React.FC = () => {
               )}
             </div>
           )}
+
+          {terminalError && (
+            <div className="w-full max-w-2xl mx-auto px-4 mt-4">
+              <TerminalErrorCard 
+                error={terminalError} 
+                onFix={() => handleFixError(terminalError)} 
+                onDismiss={() => setTerminalError(null)} 
+              />
+            </div>
+          )}
         </div>
       </div>
 
@@ -316,6 +344,8 @@ const LeftSideView: React.FC = () => {
         <AiInput
           onStop={stop}
           onSend={async (text, files) => {
+            // Clear terminal error when sending a new manual message
+            setTerminalError(null);
             // Helper to convert file to base64
             const toBase64 = (file: File): Promise<string> =>
               new Promise((resolve, reject) => {

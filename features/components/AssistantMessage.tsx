@@ -22,7 +22,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
   content,
   isStreaming = false,
 }) => {
-  const { currentWorkspace, updateFiles } = useWorkspaceStore();
+  const { currentWorkspace, updateFiles, addOpenFile, setActiveTab } = useWorkspaceStore();
 
   const parsedContent = useMemo(() => parseVibeArtifact(content), [content]);
 
@@ -51,12 +51,12 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
           </AvatarFallback>
         </Avatar>
 
-        <div className="flex flex-col gap-2 flex-1 min-w-0 max-w-[90%]">
+        <div className="flex flex-col gap-2 flex-1 min-w-0 max-w-[85%]">
           {/* Main Content Area */}
           {parsedContent.introduction ||
           hasFiles ||
           (parsedContent.conclusion && !isStreaming) ? (
-            <div className="bg-muted text-foreground border border-border rounded-2xl p-4 shadow-sm">
+            <div className="bg-muted text-foreground border border-border rounded-2xl p-4 shadow-sm break-words max-w-full overflow-hidden">
               <div className="space-y-4">
                 {/* Introduction Text */}
                 {parsedContent.introduction && (
@@ -106,7 +106,11 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
                             {parsedContent.progress.files.map((file, idx) => (
                               <div
                                 key={idx}
-                                className="flex items-center justify-between text-xs py-1.5 px-3 rounded-lg hover:bg-muted/20 transition-colors group/file"
+                                onClick={() => {
+                                  addOpenFile(file.fullPath);
+                                  setActiveTab("code-editor");
+                                }}
+                                className="flex items-center justify-between text-xs py-1.5 px-3 rounded-lg hover:bg-primary/5 hover:text-primary transition-all group/file cursor-pointer active:scale-[0.98]"
                               >
                                 <div className="flex items-center gap-2.5 min-w-0">
                                   {file.status === "COMPLETED" ? (
@@ -114,20 +118,27 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
                                   ) : (
                                     <Loader2 className="h-3.5 w-3.5 text-primary animate-spin shrink-0" />
                                   )}
-                                  <span className="text-muted-foreground font-mono truncate text-[11px] group-hover/file:text-foreground transition-colors">
+                                  <span className="text-muted-foreground font-mono truncate text-[11px] group-hover/file:text-primary transition-colors">
                                     {file.fullPath}
-                                    {(file as any).startLine && (file as any).endLine && (
-                                      <span className="ml-2 text-[10px] text-muted-foreground/60">
-                                        (Lv. {(file as any).startLine}-{(file as any).endLine})
+                                    {file.startLine && file.endLine && (
+                                      <span className="ml-2 text-[10px] text-muted-foreground/60 shrink-0">
+                                        L{file.startLine}-{file.endLine}
                                       </span>
                                     )}
                                   </span>
                                 </div>
-                                {file.status !== "COMPLETED" && (
-                                  <span className="text-[10px] text-primary/70 font-medium animate-pulse shrink-0 ml-4">
-                                    {(file as any).startLine ? "Patching..." : "Writing..."}
-                                  </span>
-                                )}
+                                <div className="flex items-center gap-3 shrink-0 ml-4">
+                                  {file.status !== "COMPLETED" ? (
+                                    <span className="text-[10px] text-primary/70 font-medium animate-pulse">
+                                      {file.startLine ? "Patching..." : "Writing..."}
+                                    </span>
+                                  ) : (
+                                    <div className="flex items-center gap-1.5 text-[10px] font-bold tabular-nums">
+                                      <span className="text-emerald-500">+{file.additions ?? 0}</span>
+                                      <span className="text-red-500">-{file.deletions ?? 0}</span>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             ))}
                           </div>
@@ -150,7 +161,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
             </div>
           ) : (
             /* Fallback for plain text messages OR initial state */
-            <div className="bg-muted text-foreground border border-border rounded-2xl p-4 shadow-sm">
+            <div className="bg-muted text-foreground border border-border rounded-2xl p-4 shadow-sm break-words max-w-full overflow-hidden">
               <div className="flex flex-col gap-2">
                 {isStreaming && content === "" && (
                   <div className="flex gap-1.5 p-1">

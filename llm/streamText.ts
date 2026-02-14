@@ -35,7 +35,7 @@ export async function streamText(
 ) {
   return _streamText({
     model: GeminiModel(),
-    system: getFineTunedPrompt(JSON.stringify(files)),
+    system: getFineTunedPrompt(files),
     maxOutputTokens: 65535,
     messages: await convertToModelMessages(
       messages.map((m) => ({

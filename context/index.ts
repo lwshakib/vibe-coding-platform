@@ -89,6 +89,10 @@ interface WorkspaceStore {
   credits: number | null;
   fetchCredits: () => Promise<void>;
   
+  // Terminal Error State
+  terminalError: { message: string; exitCode?: number } | null;
+  setTerminalError: (error: { message: string; exitCode?: number } | null) => void;
+
   // UI State
   isSidebarOpen: boolean;
   setIsSidebarOpen: (isOpen: boolean) => void;
@@ -145,6 +149,8 @@ export const useWorkspaceStore = create<WorkspaceStore>((set) => ({
       console.error("Failed to fetch credits:", err);
     }
   },
+  terminalError: null,
+  setTerminalError: (error) => set({ terminalError: error }),
 
   // SingleStack Implementation
   messages: [],
